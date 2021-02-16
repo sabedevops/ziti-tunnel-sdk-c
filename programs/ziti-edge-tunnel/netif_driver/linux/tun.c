@@ -110,7 +110,7 @@ netif_driver tun_open(uint32_t tun_ip, uint32_t dns_ip, const char *dns_block, c
     struct netif_driver_s *driver = calloc(1, sizeof(struct netif_driver_s));
     if (driver == NULL) {
         if (error != NULL) {
-            snprintf(error, error_len, "failed to allocate netif_device_s");
+            snprintf(error, error_len, "failed to allocate netif_driver_s");
             tun_close(tun);
         }
         return NULL;

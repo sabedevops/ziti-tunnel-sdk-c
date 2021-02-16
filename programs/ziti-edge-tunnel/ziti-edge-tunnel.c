@@ -107,7 +107,7 @@ static int run_tunnel(uint32_t tun_ip, const char *ip_range, dns_manager *dns) {
     netif_driver tun;
     char tun_error[64];
 #if __APPLE__ && __MACH__
-    tun = utun_open(tun_error, sizeof(tun_error), ip_range);
+    tun = utun_open(tun_ip, dns->dns_ip, ip_range, tun_error, sizeof(tun_error));
 #elif __linux__
     tun = tun_open(tun_ip, dns->dns_ip, ip_range, tun_error, sizeof(tun_error));
 #endif

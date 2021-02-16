@@ -22,7 +22,7 @@ limitations under the License.
 
 const char DNS_OPT[] = { 0x0, 0x0, 0x29, 0x02, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0 };
 
-static int apply_dns(dns_manager *msg, const char *host, const char *ip);
+static int apply_dns(dns_manager *mgr, const char *host, const char *ip);
 static int query_dns(dns_manager *dns, const uint8_t *q_packet, size_t q_len, uint8_t **r_packet, size_t *r_len);
 
 struct dns_record {

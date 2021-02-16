@@ -92,7 +92,7 @@ void utun_add_route(netif_handle tun, const char *ip) {
  * @param num populated with the unit number of the utun device that was opened
  * @return file descriptor to opened utun
  */
-netif_driver utun_open(char *error, size_t error_len, const char *cidr) {
+netif_driver utun_open(uint32_t tun_ip, uint32_t dns_ip, const char *dns_block, char *error, size_t error_len) {
     if (error != NULL) {
         memset(error, 0, error_len * sizeof(char));
     }
@@ -171,7 +171,7 @@ netif_driver utun_open(char *error, size_t error_len, const char *cidr) {
     struct netif_driver_s *driver = calloc(1, sizeof(struct netif_driver_s));
     if (driver == NULL) {
         if (error != NULL) {
-            snprintf(error, error_len, "failed to allocate netif_device_s");
+            snprintf(error, error_len, "failed to allocate netif_driver_s");
             utun_close(tun);
         }
         return NULL;
@@ -184,22 +184,38 @@ netif_driver utun_open(char *error, size_t error_len, const char *cidr) {
     driver->add_route    = utun_add_route;
     driver->close        = utun_close;
 
-    if (cidr) {
+    if (dns_block) {
         char cmd[1024];
-        int ip_len = (int)strlen(cidr);
-        const char *prefix_sep = strchr(cidr, '/');
+        int ip_len = (int)strlen(dns_block);
+        const char *prefix_sep = strchr(dns_block, '/');
         if (prefix_sep != NULL) {
-            ip_len = (int)(prefix_sep - cidr);
+            ip_len = (int)(prefix_sep - dns_block);
         }
         // add address to interface. darwin utun devices may only have "point to point" addresses
-        snprintf(cmd, sizeof(cmd), "ifconfig %s %.*s %.*s", tun->name, ip_len, cidr, ip_len, cidr);
+        snprintf(cmd, sizeof(cmd), "ifconfig %s %.*s %.*s", tun->name, ip_len, dns_block, ip_len, dns_block);
         system(cmd);
 
         // add a route for the subnet if one was specified
         if (prefix_sep != NULL) {
-            snprintf(cmd, sizeof(cmd), "route add -net %s -interface %s", cidr, tun->name);
+            snprintf(cmd, sizeof(cmd), "route add -net %s -interface %s", dns_block, tun->name);
             system(cmd);
         }
     }
+
+    if (dns_ip && FALSE /* puts our resolver first, but requires proxying for hostnames that we don't know */) {
+        char cmd[1024];
+        snprintf(cmd, sizeof(cmd), "scutil <<EOF\n"
+                                   "d.init\n"
+                                   "d.add ServerAddresses * %s\n"
+                                   "d.add SupplementalMatchDomains * \"\"\n"
+                                   "set State:/Network/Service/ZitiEdgeTunnel.%s/DNS\n"
+                                   "quit\nEOF",
+                 inet_ntoa(*(struct in_addr*)&dns_ip), tun->name);
+        int rc = system(cmd);
+        if (rc != 0) {
+            snprintf(error, error_len, "dns resolver setup failed");
+        }
+    }
+
     return driver;
 }

@@ -9,6 +9,6 @@ struct netif_handle_s {
     char name[IFNAMSIZ];
 };
 
-extern netif_driver utun_open(char *error, size_t error_len, const char *cidr);
+extern netif_driver utun_open(uint32_t tun_ip, uint32_t dns_ip, const char *dns_block, char *error, size_t error_len);
 
 #endif //ZITI_TUNNELER_SDK_UTUN_H
