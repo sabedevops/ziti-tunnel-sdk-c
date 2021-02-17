@@ -9,6 +9,7 @@
 #include <lwip/ip_addr.h>
 
 #if __APPLE__ && __MACH__
+#include <CFNetwork/CFHost.h>
 #include "netif_driver/darwin/utun.h"
 #elif __linux__
 #include "netif_driver/linux/tun.h"
@@ -197,6 +198,26 @@ static int run_opts(int argc, char *argv[]) {
 }
 
 static int dns_fallback(const char *name, void *ctx, struct in_addr* addr) {
+#if __APPLE__ && __MACH__
+    CFStringRef hn = CFStringCreateWithCString(NULL, name, kCFStringEncodingASCII);
+    CFHostRef h = CFHostCreateWithName(NULL, hn);
+    CFHostStartInfoResolution(h, kCFHostAddresses, NULL);
+    Boolean resolved;
+    CFArrayRef addrs = CFHostGetAddressing(h, &resolved);
+    if (resolved && addrs != NULL) {
+        struct sockaddr *resolvedAddr = (struct sockaddr *)CFArrayGetValueAtIndex(addrs, 0);
+        char ip_str[NI_MAXHOST];
+        int s = getnameinfo(resolvedAddr, resolvedAddr->sa_len, ip_str, sizeof(ip_str), NULL, 0, NI_NUMERICHOST);
+        if (s == 0) {
+            addr->s_addr = inet_addr(ip_str);
+            return 0; // NO_ERROR
+        } else {
+            ZITI_LOG(VERBOSE, "could not resolve %s: %s", name, gai_strerror(s));
+        }
+    } else {
+        ZITI_LOG(VERBOSE, "could not resolve %s", name);
+    }
+#endif
     return 3; // NXDOMAIN
 }
 

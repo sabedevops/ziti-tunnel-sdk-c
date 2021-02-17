@@ -3,6 +3,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin OR CMAKE_SYSTEM_NAME STREQUAL Linux)
 
     if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
         set(NETIF_DRIVER_SOURCE netif_driver/darwin/utun.c)
+        find_library(CORE_FOUNDATION Foundation)
+        find_library(CORE_NETWORK CFNetwork)
+        set(EXTRA_LIBS ${CORE_FOUNDATION} ${CORE_NETWORK})
     endif()
     if(CMAKE_SYSTEM_NAME STREQUAL Linux)
         set(NETIF_DRIVER_SOURCE netif_driver/linux/tun.c)
@@ -20,6 +23,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin OR CMAKE_SYSTEM_NAME STREQUAL Linux)
             PUBLIC ziti ziti-tunnel-sdk-c ziti-tunnel-cbs-c
             PUBLIC lwipcore ${lwip_sys_lib} ziti-tunnel-sdk-c
             PUBLIC subcommand
+            PUBLIC ${EXTRA_LIBS}
             )
 
     BUNDLE_COMP(ziti-edge-tunnel)
