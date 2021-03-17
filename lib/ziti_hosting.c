@@ -550,7 +550,7 @@ static void on_hosted_client_connect(ziti_connection serv, ziti_connection clt, 
                 int one = 1;
                 int e = uv_fileno((uv_handle_t *) &io_ctx->server.tcp, &sock_fd);
                 // enables the bind to succeed, but connect fails unless a local route exists
-                if (setsockopt(sock_fd, SOL_IP, IP_FREEBIND, &one, sizeof(one)) != 0) {
+                if (setsockopt(sock_fd, IPPROTO_IP, IP_FREEBIND, &one, sizeof(one)) != 0) {
                     ZITI_LOG(ERROR, "failed to set IP_FREEBIND: %s", strerror(errno));
                     err = true;
                     goto done;
