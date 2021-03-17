@@ -550,7 +550,7 @@ static void on_hosted_client_connect(ziti_connection serv, ziti_connection clt, 
                 int one = 1;
                 uv_err = uv_fileno((uv_handle_t *) &io_ctx->server.tcp, &sock_fd);
                 if (uv_err != 0) {
-                    ZITI_LOG(ERROR, "uv_file failed: %s", uv_err_name(uv_err));
+                    ZITI_LOG(ERROR, "uv_fileno failed: %s", uv_err_name(uv_err));
                     err = true;
                     goto done;
                 }
