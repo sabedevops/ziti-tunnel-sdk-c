@@ -542,9 +542,20 @@ static void on_hosted_client_connect(ziti_connection serv, ziti_connection clt, 
     int uv_err;
     switch (dial_ai->ai_protocol) {
         case IPPROTO_TCP:
-            uv_tcp_init(service_ctx->loop, &io_ctx->server.tcp);
+            uv_tcp_init_ex(service_ctx->loop, &io_ctx->server.tcp, dial_ai->ai_family);
             io_ctx->server.tcp.data = io_ctx;
             if (source_ai != NULL) {
+#if defined(IP_FREEBIND)
+                uv_os_fd_t sock_fd;
+                int one = 1;
+                int e = uv_fileno((uv_handle_t *) &io_ctx->server.tcp, &sock_fd);
+                // enables the bind to succeed, but connect fails unless a local route exists
+                if (setsockopt(sock_fd, SOL_IP, IP_FREEBIND, &one, sizeof(one)) != 0) {
+                    ZITI_LOG(ERROR, "failed to set IP_FREEBIND: %s", strerror(errno));
+                    err = true;
+                    goto done;
+                }
+#endif
                 uv_err = uv_tcp_bind(&io_ctx->server.tcp, source_ai->ai_addr, 0);
                 if (uv_err != 0) {
                     ZITI_LOG(ERROR, "hosted_service[%s], client[%s]: uv_tcp_bind failed: %s",
@@ -568,6 +579,7 @@ static void on_hosted_client_connect(ziti_connection serv, ziti_connection clt, 
             uv_udp_init(service_ctx->loop, &io_ctx->server.udp);
             io_ctx->server.udp.data = io_ctx;
             if (source_ai != NULL) {
+                // todo set IP_FREEBIND
                 uv_err = uv_udp_bind(&io_ctx->server.udp, source_ai->ai_addr, 0);
                 if (uv_err != 0) {
                     ZITI_LOG(ERROR, "hosted_service[%s] client[%s]: uv_udp_bind failed: %s",
