@@ -154,18 +154,24 @@ static void load_identities_complete(uv_work_t * wr, int status) {
     }
 }
 
+// don't intercept or resolve dns
+static bool host_only = false;
+
 static int run_tunnel(uv_loop_t *ziti_loop, uint32_t tun_ip, const char *ip_range, dns_manager *dns) {
-    netif_driver tun;
-    char tun_error[64];
+    netif_driver tun = NULL;
+
+    if (!host_only) {
+        char tun_error[64];
 #if __APPLE__ && __MACH__
-    tun = utun_open(tun_error, sizeof(tun_error), ip_range);
+        tun = utun_open(tun_error, sizeof(tun_error), ip_range);
 #elif __linux__
-    tun = tun_open(ziti_loop, tun_ip, dns->dns_ip, ip_range, tun_error, sizeof(tun_error));
+        tun = tun_open(ziti_loop, tun_ip, dns->dns_ip, ip_range, tun_error, sizeof(tun_error));
 #endif
 
-    if (tun == NULL) {
-        ZITI_LOG(ERROR, "failed to open network interface: %s", tun_error);
-        return 1;
+        if (tun == NULL) {
+            ZITI_LOG(ERROR, "failed to open network interface: %s", tun_error);
+            return 1;
+        }
     }
 
     tunneler_sdk_options tunneler_opts = {
@@ -179,7 +185,9 @@ static int run_tunnel(uv_loop_t *ziti_loop, uint32_t tun_ip, const char *ip_rang
     };
 
     tnlr_ctx = ziti_tunneler_init(&tunneler_opts, ziti_loop);
-    ziti_tunneler_set_dns(tnlr_ctx, dns);
+    if (dns != NULL) {
+        ziti_tunneler_set_dns(tnlr_ctx, dns);
+    }
 
     uv_work_t *loader = calloc(1, sizeof(uv_work_t));
     uv_queue_work(ziti_loop, loader, load_identities, load_identities_complete);
@@ -223,6 +231,7 @@ static struct option run_options[] = {
         { "refresh", required_argument, NULL, 'r'},
         { "dns-ip-range", required_argument, NULL, 'd'},
         { "dns", required_argument, NULL, 'n'},
+        { "host-only", no_argument, NULL, 'H' },
 };
 
 static const char* ip_range = "100.64.0.0/10";
@@ -234,7 +243,7 @@ static int run_opts(int argc, char *argv[]) {
     int c, option_index, errors = 0;
     optind = 0;
 
-    while ((c = getopt_long(argc, argv, "i:I:v:r:d:n:",
+    while ((c = getopt_long(argc, argv, "i:I:v:r:d:n:H",
                             run_options, &option_index)) != -1) {
         switch (c) {
             case 'i': {
@@ -257,6 +266,9 @@ static int run_opts(int argc, char *argv[]) {
             case 'n': // DNS manager implementation
                 dns_impl = optarg;
                 break;
+            case 'H': // host-only
+                host_only = true;
+                break;
             default: {
                 ZITI_LOG(ERROR, "Unknown option '%c'", c);
                 errors++;
@@ -277,22 +289,8 @@ static int dns_fallback(const char *name, void *ctx, struct in_addr* addr) {
 
 static void run(int argc, char *argv[]) {
 
-    uint ip[4];
-    int bits;
-    int rc = sscanf(ip_range, "%d.%d.%d.%d/%d", &ip[0], &ip[1], &ip[2], &ip[3], &bits);
-    if (rc != 5) {
-        ZITI_LOG(ERROR, "Invalid IP range specification: n.n.n.n/m format is expected");
-        exit(1);
-    }
-
-    uint32_t mask = 0;
-    for (int i = 0; i < 4; i++) {
-        mask <<= 8U;
-        mask |= (ip[i] & 0xFFU);
-    }
-
-    uint32_t tun_ip = htonl(mask | 0x1);
-    uint32_t dns_ip = htonl(mask | 0x2);
+    int rc;
+    uint32_t tun_ip = 0;
 
     uv_loop_t *ziti_loop = uv_default_loop();
     ziti_log_init(ziti_loop, ZITI_LOG_DEFAULT_LEVEL, NULL);
@@ -302,22 +300,42 @@ static void run(int argc, char *argv[]) {
     }
 
     dns_manager *dns = NULL;
-    if (dns_impl == NULL || strcmp(dns_impl, "internal") == 0) {
-        ZITI_LOG(INFO, "setting up internal DNS");
-        dns = get_tunneler_dns(ziti_loop, dns_ip, dns_fallback, NULL);
-    } else if (strncmp("dnsmasq", dns_impl, strlen("dnsmasq")) == 0) {
-        char *col = strchr(dns_impl, ':');
-        if (col == NULL) {
-            ZITI_LOG(ERROR, "DNS dnsmasq option should be `--dns=dnsmasq:<hosts-dir>");
+
+    if (!host_only) {
+        uint ip[4];
+        int bits;
+        rc = sscanf(ip_range, "%d.%d.%d.%d/%d", &ip[0], &ip[1], &ip[2], &ip[3], &bits);
+        if (rc != 5) {
+            ZITI_LOG(ERROR, "Invalid IP range specification: n.n.n.n/m format is expected");
             exit(1);
         }
-        dns = get_dnsmasq_manager(col + 1);
-    } else {
-        ZITI_LOG(ERROR, "DNS setting '%s' is not supported", dns_impl);
-        exit(1);
-    }
 
-    ziti_tunneler_init_dns(mask, bits);
+        uint32_t mask = 0;
+        for (int i = 0; i < 4; i++) {
+            mask <<= 8U;
+            mask |= (ip[i] & 0xFFU);
+        }
+
+        tun_ip = htonl(mask | 0x1);
+        uint32_t dns_ip = htonl(mask | 0x2);
+
+        if (dns_impl == NULL || strcmp(dns_impl, "internal") == 0) {
+            ZITI_LOG(INFO, "setting up internal DNS");
+            dns = get_tunneler_dns(ziti_loop, dns_ip, dns_fallback, NULL);
+        } else if (strncmp("dnsmasq", dns_impl, strlen("dnsmasq")) == 0) {
+            char *col = strchr(dns_impl, ':');
+            if (col == NULL) {
+                ZITI_LOG(ERROR, "DNS dnsmasq option should be `--dns=dnsmasq:<hosts-dir>");
+                exit(1);
+            }
+            dns = get_dnsmasq_manager(col + 1);
+        } else {
+            ZITI_LOG(ERROR, "DNS setting '%s' is not supported", dns_impl);
+            exit(1);
+        }
+
+        ziti_tunneler_init_dns(mask, bits);
+    }
 
     rc = run_tunnel(ziti_loop, tun_ip, ip_range, dns);
     exit(rc);
@@ -454,14 +472,15 @@ static CommandLine enroll_cmd = make_command("enroll", "enroll Ziti identity",
         "\t-c|--cert\tcertificate for enrollment\n",
         parse_enroll_opts, enroll);
 static CommandLine run_cmd = make_command("run", "run Ziti tunnel (required superuser access)",
-                                          "-i <id.file> [-r N] [-v N] [-d|--dns-ip-range N.N.N.N/n] [-n|--dns <internal|dnsmasq=<dnsmasq hosts dir>>]",
+                                          "-i <id.file> [-H] [-r N] [-v N] [-d|--dns-ip-range N.N.N.N/n] [-n|--dns <internal|dnsmasq=<dnsmasq hosts dir>>]",
                                           "\t-i|--identity <identity>\trun with provided identity file (required)\n"
                                           "\t-I|--identity-dir <dir>\tload identities from provided directory\n"
                                           "\t-v|--verbose N\tset log level, higher level -- more verbose (default 3)\n"
                                           "\t-r|--refresh N\tset service polling interval in seconds (default 10)\n"
                                           "\t-d|--dns-ip-range <ip range>\tspecify CIDR block in which service DNS names"
                                           " are assigned in N.N.N.N/n format (default 100.64.0.0/10)\n"
-                                          "\t-n|--dns <internal|dnsmasq=<dnsmasq opts>> DNS configuration setting (default internal)\n",
+                                          "\t-n|--dns <internal|dnsmasq=<dnsmasq opts>> DNS configuration setting (default internal)\n"
+                                          "\t-H|--host-only\tonly tunnel hosted services - do not set up TUN interface or DNS server\n",
         run_opts, run);
 static CommandLine ver_cmd = make_command("version", "show version", "[-v]", "\t-v\tshow verbose version information\n", version_opts, version);
 static CommandLine help_cmd = make_command("help", "this message", NULL, NULL, NULL, usage);

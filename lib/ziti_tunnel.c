@@ -301,6 +301,11 @@ int ziti_tunneler_intercept(tunneler_context tnlr_ctx, intercept_ctx_t *i_ctx) {
         return -1;
     }
 
+    if (tnlr_ctx->opts.netif_driver == NULL) {
+        ZITI_LOG(INFO, "netif driver not initialized - not intercepting %s", i_ctx->service_name);
+        return 0;
+    }
+
     address_t *address;
     STAILQ_FOREACH(address, &i_ctx->addresses, entries) {
         protocol_t *proto;
@@ -492,9 +497,14 @@ static void run_packet_loop(uv_loop_t *loop, tunneler_context tnlr_ctx) {
         exit(1);
     }
 
+    netif_driver netif_driver = opts.netif_driver;
+    if (netif_driver == NULL) {
+        ZITI_LOG(INFO, "netif driver not initialized - intercepting is disabled");
+        return;
+    }
+
     lwip_init();
 
-    netif_driver netif_driver = opts.netif_driver;
     if (netif_add_noaddr(&tnlr_ctx->netif, netif_driver, netif_shim_init, ip_input) == NULL) {
         ZITI_LOG(ERROR, "netif_add failed");
         exit(1);
