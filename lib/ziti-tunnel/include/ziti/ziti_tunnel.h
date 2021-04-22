@@ -60,8 +60,9 @@ typedef enum {
 
 typedef struct protocol_s {
     char *protocol;
-    STAILQ_ENTRY(protocol_s) entries;
+    SLIST_ENTRY(protocol_s) entries;
 } protocol_t;
+typedef SLIST_HEAD(protocol_list_s, protocol_s) protocol_list_t;
 
 typedef struct address_s {
     char       str[UV_MAXHOSTNAMESIZE]; // hostname || ip || ip/prefix
@@ -69,19 +70,21 @@ typedef struct address_s {
     ip_addr_t  ip;
     ip_addr_t  _netmask;
     uint8_t    prefix_len;
-    STAILQ_ENTRY(address_s) entries;
+    SLIST_ENTRY(address_s) entries;
 } address_t;
+typedef SLIST_HEAD(address_list_s, address_s) address_list_t;
 
 typedef struct port_range_s {
     int low;
     int high;
     char str[16]; // [123456-123456]
-    STAILQ_ENTRY(port_range_s) entries;
+    SLIST_ENTRY(port_range_s) entries;
 } port_range_t;
+typedef SLIST_HEAD(port_range_list_s, port_range_s) port_range_list_t;
 
 /** data needed to intercept packets and dial the associated ziti service */
 typedef struct intercept_ctx_s  intercept_ctx_t;
-extern intercept_ctx_t* intercept_ctx_new(tunneler_context tnlt_ctx, const char *app_id, void *app_intercept_ctx);
+extern intercept_ctx_t *intercept_ctx_new(tunneler_context tnlr_ctx, const char *app_id, void *app_intercept_ctx);
 
 extern void intercept_ctx_add_protocol(intercept_ctx_t *ctx, const char *protocol);
 /** parse address string as hostname|ip|cidr and add result to list of intercepted addresses */
@@ -100,14 +103,50 @@ struct io_ctx_list_entry_s {
 };
 SLIST_HEAD(io_ctx_list_s, io_ctx_list_entry_s);
 
-typedef struct hosted_service_ctx_s {
+typedef struct host_ctx_s host_ctx_t;
+struct host_ctx_s {
+    tunneler_context    tnlr_ctx;
+    const char *        service_name;
+    void *              app_host_ctx;
+
+    bool                forward_protocol;
+    union {
+        protocol_list_t allowed_protocols; // forward_protocol == true
+        protocol_t      protocol;          // forward_protocol == false
+    } proto_u;
+
+    bool                forward_address;
+    union {
+        address_list_t allowed_addresses;  // forward_address == true
+        address_t      address;            // forward_address == false
+    } addr_u;
+
+    bool                forward_port;
+    union {
+        port_range_list_t allowed_port_ranges; // forward_port == true
+        uint16_t          port;                // forward_port == false
+    } port_u;
+
+    address_list_t      allowed_source_addresses;
+
+    SLIST_ENTRY(host_ctx_s) entries;
+};
+typedef SLIST_HEAD(host_ctx_list_s, host_ctx_s) host_ctx_list_t;
+extern host_ctx_t *host_ctx_new(tunneler_context tnlr_ctx, const char *app_id, void *app_host_ctx);
+
+
+typedef struct hosted_service_ctx_s_nomore {
     char *       service_name;
     const void * ziti_ctx;
     uv_loop_t *  loop;
     cfg_type_e   cfg_type;
     const void * cfg;
     char address[64];
-} host_ctx_t;
+    protocol_list_t   allowed_protocols;
+    address_list_t    allowed_addresses;
+    port_range_list_t allowed_port_ranges;
+    address_list_t    allowed_source_addresses;
+} broken_delete_me;
 
 typedef struct tunneled_service_s {
     intercept_ctx_t *intercept;
@@ -121,7 +160,7 @@ typedef struct tunneled_service_s {
 typedef void * (*ziti_sdk_dial_cb)(const void *app_intercept_ctx, struct io_ctx_s *io);
 typedef int (*ziti_sdk_close_cb)(void *ziti_io_ctx);
 typedef ssize_t (*ziti_sdk_write_cb)(const void *ziti_io_ctx, void *write_ctx, const void *data, size_t len);
-typedef host_ctx_t * (*ziti_sdk_host_cb)(void *ziti_ctx, uv_loop_t *loop, const char *service_name, cfg_type_e cfg_type, const void *cfg);
+typedef host_ctx_t * (*ziti_sdk_host_cb)(void *ziti_ctx, uv_loop_t *loop, netif_driver_t *tun, const char *service_name, cfg_type_e cfg_type, const void *cfg);
 
 typedef struct tunneler_sdk_options_s {
     netif_driver   netif_driver;
@@ -158,6 +197,20 @@ extern dns_manager *get_tunneler_dns(uv_loop_t *l, uint32_t dns_ip, dns_fallback
 
 extern address_t *parse_address(const char *hn_or_ip_or_cidr, dns_manager *dns);
 
+extern protocol_t *add_protocol(const char *protocol, protocol_list_t *list);
+/** parse address string as hostname|ip|cidr and add result to list of addresses */
+extern address_t *add_address(const char *address, address_list_t *list, dns_manager *dns);
+extern port_range_t *add_port_range(uint16_t low, uint16_t high, port_range_list_t *list);
+
+extern bool protocol_match(const char *protocol, const protocol_list_t *protocols);
+extern bool address_match(const ip_addr_t *addr, const address_list_t *addresses);
+extern bool port_match(int port, const port_range_list_t *port_ranges);
+
+extern int add_route(netif_driver tun, address_t *dest);
+extern int add_routes(netif_driver tun, address_list_t *dest_list);
+extern int delete_route(netif_driver tun, address_t *dest);
+extern int delete_routes(netif_driver tun, address_list_t *dest_list);
+
 extern tunneler_context ziti_tunneler_init(tunneler_sdk_options *opts, uv_loop_t *loop);
 
 /** called by tunneler application when it is done with a tunneler_context.
@@ -168,9 +221,11 @@ extern void ziti_tunneler_set_dns(tunneler_context tnlr_ctx, dns_manager *dns);
 
 extern int ziti_tunneler_intercept(tunneler_context tnlr_ctx, intercept_ctx_t *i_ctx);
 
-extern host_ctx_t * ziti_tunneler_host(tunneler_context tnlr_ctx, const void *ziti_ctx, const char *service_name, cfg_type_e cfg_type, void *cfg);
+extern host_ctx_t * ziti_tunneler_host(tunneler_context tnlr_ctx, host_ctx_t *h_ctx);
 
 extern void ziti_tunneler_stop_intercepting(tunneler_context tnlr_ctx, void *zi_ctx);
+
+extern void ziti_tunneler_stop_hosting(tunneler_context tnlr_ctx, host_ctx_t *h_ctx);
 
 extern void ziti_tunneler_dial_completed(struct io_ctx_s *io_context, bool ok);
 

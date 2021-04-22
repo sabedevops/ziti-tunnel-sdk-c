@@ -26,29 +26,9 @@ typedef struct ziti_intercept_s {
     } cfg;
 } ziti_intercept_t;
 
-
-typedef int (*cfg_parse_fn)(void *, const char *, size_t);
-typedef void* (*cfg_alloc_fn)();
-typedef void (*cfg_free_fn)(void *);
-
-typedef struct cfgtype_desc_s {
-    const char *name;
-    cfg_type_e cfgtype;
-    cfg_alloc_fn alloc;
-    cfg_free_fn free;
-    cfg_parse_fn parse;
-} cfgtype_desc_t;
-
-#define CFGTYPE_DESC(name, cfgtype, type) { (name), (cfgtype), (cfg_alloc_fn)alloc_##type, (cfg_free_fn)free_##type, (cfg_parse_fn)parse_##type }
-
-static struct cfgtype_desc_s intercept_cfgtypes[] = {
+static cfgtype_desc_t intercept_cfgtypes[] = {
         CFGTYPE_DESC("intercept.v1", INTERCEPT_CFG_V1, ziti_intercept_cfg_v1),
         CFGTYPE_DESC("ziti-tunneler-client.v1", CLIENT_CFG_V1, ziti_client_cfg_v1)
-};
-
-static struct cfgtype_desc_s host_cfgtypes[] = {
-        CFGTYPE_DESC("host.v1", HOST_CFG_V1, ziti_host_cfg_v1),
-        CFGTYPE_DESC("ziti-tunneler-server.v1", SERVER_CFG_V1, ziti_server_cfg_v1)
 };
 
 static void free_ziti_intercept(ziti_intercept_t *zi) {
@@ -459,17 +439,12 @@ tunneled_service_t *ziti_sdk_c_on_service(ziti_context ziti_ctx, ziti_service *s
             }
         }
         if (service->perm_flags & ZITI_CAN_BIND) {
-            for (i = 0; i < sizeof(host_cfgtypes) / sizeof(cfgtype_desc_t); i++) {
-                cfgtype = &host_cfgtypes[i];
-                config = cfgtype->alloc();
-                get_config_rc = ziti_service_get_config(service, cfgtype->name, config, cfgtype->parse);
-                if (get_config_rc == 0) {
-                    current_tunneled_service.host = ziti_tunneler_host(tnlr_ctx, ziti_ctx, service->name, cfgtype->cfgtype, config);
-                    break;
-                }
-                cfgtype->free(config);
-            }
-            if (!current_tunneled_service.host) {
+            ziti_host_t *zh_ctx = new_ziti_host(ziti_ctx, service);
+            if (zh_ctx) {
+                host_ctx_t *h_ctx = new_host_ctx(tnlr_ctx, zh_ctx);
+                ziti_tunneler_host(tnlr_ctx, h_ctx);
+                current_tunneled_service.host = h_ctx;
+            } else {
                 ZITI_LOG(DEBUG, "service[%s] can be bound, but lacks host configuration; not hosting", service->name);
             }
         }
@@ -480,6 +455,8 @@ tunneled_service_t *ziti_sdk_c_on_service(ziti_context ziti_ctx, ziti_service *s
             ziti_tunneler_stop_intercepting(tnlr_ctx, zi_ctx);
             free(zi_ctx);
         }
+        ziti_host_t *zh_ctx = NULL;
+        ziti_tunneler_stop_hosting(tnlr_ctx, zh_ctx);
     }
 
     return &current_tunneled_service;

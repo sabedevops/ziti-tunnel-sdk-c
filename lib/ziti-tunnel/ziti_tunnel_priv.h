@@ -25,16 +25,17 @@ typedef void (*tunnel_logger_f)(int level, const char *file, unsigned int line, 
 extern tunnel_logger_f tunnel_logger;
 
 struct intercept_ctx_s {
-    tunneler_context tnlr_ctx;
-    const char *service_name;
-    void *app_intercept_ctx;
+    tunneler_context   tnlr_ctx;
+    const char *       service_name;
+    void *             app_intercept_ctx;
 
-    STAILQ_HEAD(protocol, protocol_s)     protocols;
-    STAILQ_HEAD(port_range, port_range_s) port_ranges;
-    STAILQ_HEAD(address, address_s)       addresses;
+    protocol_list_t    protocols;
+    port_range_list_t  port_ranges;
+    address_list_t     addresses;
 
-    STAILQ_ENTRY(intercept_ctx_s) entries;
+    SLIST_ENTRY(intercept_ctx_s) entries;
 };
+typedef SLIST_HEAD(intercept_ctx_list_s, intercept_ctx_s) intercept_ctx_list_t;
 
 typedef struct tunneler_ctx_s {
     tunneler_sdk_options opts; // this must be first - it is accessed opaquely through tunneler_context*
@@ -44,14 +45,14 @@ typedef struct tunneler_ctx_s {
     uv_loop_t      *loop;
     uv_poll_t    netif_poll_req;
     uv_timer_t   lwip_timer_req;
-    STAILQ_HEAD(intercept_ctx_list_s, intercept_ctx_s) intercepts;
-//    STAILQ_HEAD(hosted_service_ctx_list_s, hosted_service_ctx_s) hosts;
+    intercept_ctx_list_t intercepts;
+    host_ctx_list_t      hosts;
     dns_manager *dns;
     struct udp_pcb *dns_pcb;
 } *tunneler_context;
 
 /** return the intercept context for a packet based on its destination ip:port */
-extern intercept_ctx_t *lookup_intercept_by_address(tunneler_context tnlr_ctx, const char *protocol, ip_addr_t *dst_addr, int dst_port_low, int dst_port_high);
+extern intercept_ctx_t *lookup_intercept_by_address(tunneler_context tnlr_ctx, const char *protocol, ip_addr_t *dst_addr, int dst_port);
 
 typedef enum  {
     tun_tcp,
@@ -89,7 +90,5 @@ struct write_ctx_s {
 };
 
 const char* assign_ip(const char *hostname);
-
-extern int add_route(netif_driver tun, address_t *dest);
 
 #endif //ZITI_TUNNELER_SDK_ZITI_TUNNELER_PRIV_H

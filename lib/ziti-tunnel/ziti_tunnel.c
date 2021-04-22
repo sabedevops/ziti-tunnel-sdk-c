@@ -39,7 +39,7 @@ const char *DST_PROTO_KEY = "dst_protocol";
 const char *DST_IP_KEY = "dst_ip";
 const char *DST_PORT_KEY = "dst_port";
 const char *DST_HOST_KEY = "dst_hostname";
-const char *SRC_PROTO_KEY = "src_protocol";
+const char *SRC_PROTO_KEY = "src_protocol"; // todo use src_ keys
 const char *SRC_IP_KEY = "src_ip";
 const char *SRC_PORT_KEY = "src_port";
 const char *SOURCE_IP_KEY = "source_ip";
@@ -69,21 +69,21 @@ tunneler_context ziti_tunneler_init(tunneler_sdk_options *opts, uv_loop_t *loop)
     }
     ctx->loop = loop;
     memcpy(&ctx->opts, opts, sizeof(ctx->opts));
-    STAILQ_INIT(&ctx->intercepts);
+    SLIST_INIT(&ctx->intercepts);
     run_packet_loop(loop, ctx);
 
     return ctx;
 }
 
-static void tunneler_kill_active(const void *ztx);
+static void tunneler_kill_active(const void *zi_ctx);
 
 void ziti_tunneler_shutdown(tunneler_context tnlr_ctx) {
     TNL_LOG(DEBUG, "tnlr_ctx %p", tnlr_ctx);
 
-    while (!STAILQ_EMPTY(&tnlr_ctx->intercepts)) {
-        intercept_ctx_t *i = STAILQ_FIRST(&tnlr_ctx->intercepts);
+    while (!SLIST_EMPTY(&tnlr_ctx->intercepts)) {
+        intercept_ctx_t *i = SLIST_FIRST(&tnlr_ctx->intercepts);
         tunneler_kill_active(i->app_intercept_ctx);
-        STAILQ_REMOVE_HEAD(&tnlr_ctx->intercepts, entries);
+        SLIST_REMOVE_HEAD(&tnlr_ctx->intercepts, entries);
     }
 }
 
@@ -145,8 +145,12 @@ void ziti_tunneler_dial_completed(struct io_ctx_s *io, bool ok) {
     }
 }
 
-host_ctx_t *ziti_tunneler_host(tunneler_context tnlr_ctx, const void *ziti_ctx, const char *service_name, cfg_type_e cfg_type, void *config) {
-    return tnlr_ctx->opts.ziti_host((void *) ziti_ctx, tnlr_ctx->loop, service_name, cfg_type, config);
+host_ctx_t *ziti_tunneler_host(tunneler_context tnlr_ctx, host_ctx_t *h_ctx) {
+    add_routes(tnlr_ctx->opts.netif_driver, &h_ctx->allowed_source_addresses);
+    return tnlr_ctx->opts.ziti_host((void *) h_ctx->ziti_ctx, tnlr_ctx->loop, tnlr_ctx->opts.netif_driver, service_name, cfg_type, config);
+}
+
+void ziti_tunneler_stop_hosting(tunneler_context tnlr_ctx, host_ctx_t *h_ctx) {
 }
 
 static void send_dns_resp(uint8_t *resp, size_t resp_len, void *ctx) {
@@ -201,17 +205,35 @@ intercept_ctx_t* intercept_ctx_new(tunneler_context tnlr_ctx, const char *app_id
     ictx->tnlr_ctx = tnlr_ctx;
     ictx->service_name = app_id;
     ictx->app_intercept_ctx = app_intercept_ctx;
-    STAILQ_INIT(&ictx->protocols);
-    STAILQ_INIT(&ictx->addresses);
-    STAILQ_INIT(&ictx->port_ranges);
+    SLIST_INIT(&ictx->protocols);
+    SLIST_INIT(&ictx->addresses);
+    SLIST_INIT(&ictx->port_ranges);
 
     return ictx;
 }
 
+host_ctx_t *host_ctx_new(tunneler_context tnlr_ctx, const char *service_name, void *app_host_ctx) {
+    host_ctx_t *hctx = calloc(1, sizeof(host_ctx_t));
+    hctx->tnlr_ctx = tnlr_ctx;
+    hctx->service_name = service_name;
+    hctx->app_host_ctx = app_host_ctx;
+    SLIST_INIT(&hctx->proto_u.allowed_protocols);
+    SLIST_INIT(&hctx->addr_u.allowed_addresses);
+    SLIST_INIT(&hctx->port_u.allowed_port_ranges);
+    SLIST_INIT(&hctx->allowed_source_addresses);
+
+    return hctx;
+}
+
 void intercept_ctx_add_protocol(intercept_ctx_t *ctx, const char *protocol) {
+    add_protocol(protocol, &ctx->protocols);
+}
+
+protocol_t *add_protocol(const char *protocol, protocol_list_t *list) {
     protocol_t *proto = calloc(1, sizeof(protocol_t));
     proto->protocol = strdup(protocol);
-    STAILQ_INSERT_TAIL(&ctx->protocols, proto, entries);
+    SLIST_INSERT_HEAD(list, proto, entries);
+    return proto;
 }
 
 address_t *parse_address(const char *hn_or_ip_or_cidr, dns_manager *dns) {
@@ -267,14 +289,18 @@ address_t *parse_address(const char *hn_or_ip_or_cidr, dns_manager *dns) {
 }
 
 address_t *intercept_ctx_add_address(intercept_ctx_t *i_ctx, const char *address) {
-    address_t *addr = parse_address(address, i_ctx->tnlr_ctx->dns);
-
+    address_t *addr = add_address(address, &i_ctx->addresses, i_ctx->tnlr_ctx->dns);
     if (addr == NULL) {
         TNL_LOG(ERR, "failed to parse address '%s' service[%s]", address, i_ctx->service_name);
-        return NULL;
     }
+    return addr;
+}
 
-    STAILQ_INSERT_TAIL(&i_ctx->addresses, addr, entries);
+address_t *add_address(const char *address, address_list_t *list, dns_manager *dns) {
+    address_t *addr = parse_address(address, dns);
+    if (addr != NULL) {
+        SLIST_INSERT_HEAD(list, addr, entries);
+    }
     return addr;
 }
 
@@ -297,8 +323,12 @@ port_range_t *parse_port_range(uint16_t low, uint16_t high) {
 }
 
 port_range_t *intercept_ctx_add_port_range(intercept_ctx_t *i_ctx, uint16_t low, uint16_t high) {
+    return add_port_range(low, high, &i_ctx->port_ranges);
+}
+
+port_range_t *add_port_range(uint16_t low, uint16_t high, port_range_list_t *list) {
     port_range_t *pr = parse_port_range(low, high);
-    STAILQ_INSERT_TAIL(&i_ctx->port_ranges, pr, entries);
+    SLIST_INSERT_HEAD(list, pr, entries);
     return pr;
 }
 
@@ -310,11 +340,11 @@ int ziti_tunneler_intercept(tunneler_context tnlr_ctx, intercept_ctx_t *i_ctx) {
     }
 
     address_t *address;
-    STAILQ_FOREACH(address, &i_ctx->addresses, entries) {
+    SLIST_FOREACH(address, &i_ctx->addresses, entries) {
         protocol_t *proto;
-        STAILQ_FOREACH(proto, &i_ctx->protocols, entries) {
+        SLIST_FOREACH(proto, &i_ctx->protocols, entries) {
             port_range_t *pr;
-            STAILQ_FOREACH(pr, &i_ctx->port_ranges, entries) {
+            SLIST_FOREACH(pr, &i_ctx->port_ranges, entries) {
                 // todo find conflicts with services
                 // intercept_ctx_t *match;
                 // match = lookup_intercept_by_address(tnlr_ctx, proto->protocol, &address->ip, pr->low, pr->high);
@@ -324,11 +354,12 @@ int ziti_tunneler_intercept(tunneler_context tnlr_ctx, intercept_ctx_t *i_ctx) {
         }
     }
 
-    STAILQ_FOREACH(address, &i_ctx->addresses, entries) {
+    // todo use add_routes?
+    SLIST_FOREACH(address, &i_ctx->addresses, entries) {
          add_route(tnlr_ctx->opts.netif_driver, address);
     }
 
-    STAILQ_INSERT_TAIL(&tnlr_ctx->intercepts, (struct intercept_ctx_s *)i_ctx, entries);
+    SLIST_INSERT_HEAD(&tnlr_ctx->intercepts, (struct intercept_ctx_s *)i_ctx, entries);
 
     return 0;
 }
@@ -372,10 +403,10 @@ void ziti_tunneler_stop_intercepting(tunneler_context tnlr_ctx, void *zi_ctx) {
     }
 
     TNL_LOG(DEBUG, "removing intercept for service_ctx[%p]", zi_ctx);
-    struct intercept_ctx_s *intercept;
-    STAILQ_FOREACH(intercept, &tnlr_ctx->intercepts, entries) {
+    intercept_ctx_t *intercept;
+    SLIST_FOREACH(intercept, &tnlr_ctx->intercepts, entries) {
         if (intercept->app_intercept_ctx == zi_ctx) {
-            STAILQ_REMOVE(&tnlr_ctx->intercepts, intercept, intercept_ctx_s, entries);
+            SLIST_REMOVE(&tnlr_ctx->intercepts, intercept, intercept_ctx_s, entries);
             break;
         }
     }
@@ -383,21 +414,21 @@ void ziti_tunneler_stop_intercepting(tunneler_context tnlr_ctx, void *zi_ctx) {
     if (intercept) {
         TNL_LOG(DEBUG, "removing intercept for service[%s] service_ctx[%p]", intercept->service_name, zi_ctx);
 
-        while(!STAILQ_EMPTY(&intercept->protocols)) {
-            protocol_t *p = STAILQ_FIRST(&intercept->protocols);
-            STAILQ_REMOVE(&intercept->protocols, p, protocol_s, entries);
+        while(!SLIST_EMPTY(&intercept->protocols)) {
+            protocol_t *p = SLIST_FIRST(&intercept->protocols);
+            SLIST_REMOVE_HEAD(&intercept->protocols, entries);
             free(p->protocol);
             free(p);
         }
-        while(!STAILQ_EMPTY(&intercept->addresses)) {
-            address_t *a = STAILQ_FIRST(&intercept->addresses);
-            STAILQ_REMOVE(&intercept->addresses, a, address_s, entries);
+        while(!SLIST_EMPTY(&intercept->addresses)) {
+            address_t *a = SLIST_FIRST(&intercept->addresses);
+            SLIST_REMOVE_HEAD(&intercept->addresses, entries);
             free(a);
         }
 
-        while(!STAILQ_EMPTY(&intercept->port_ranges)) {
-            port_range_t *p = STAILQ_FIRST(&intercept->port_ranges);
-            STAILQ_REMOVE(&intercept->port_ranges, p, port_range_s , entries);
+        while(!SLIST_EMPTY(&intercept->port_ranges)) {
+            port_range_t *p = SLIST_FIRST(&intercept->port_ranges);
+            SLIST_REMOVE_HEAD(&intercept->port_ranges, entries);
             free(p);
         }
 
@@ -465,8 +496,7 @@ int ziti_tunneler_close_write(tunneler_io_context tnlr_io_ctx) {
             tnlr_io_ctx->service_name, tnlr_io_ctx->client);
     switch (tnlr_io_ctx->proto) {
         case tun_tcp:
-            tunneler_tcp_close_write(tnlr_io_ctx->tcp);
-            break;
+            return tunneler_tcp_close_write(tnlr_io_ctx->tcp);
         default:
             TNL_LOG(DEBUG, "not sending FIN on %d connection", tnlr_io_ctx->proto);
             break;
