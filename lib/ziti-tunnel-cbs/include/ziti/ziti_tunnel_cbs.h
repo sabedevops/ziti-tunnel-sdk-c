@@ -54,6 +54,24 @@ DECLARE_MODEL(tunnel_load_identity, TNL_LOAD_IDENTITY)
 DECLARE_MODEL(tunnel_identity_info, TNL_IDENTITY_INFO)
 DECLARE_MODEL(tunnel_identity_list, TNL_IDENTITY_LIST)
 
+typedef int (*cfg_parse_fn)(void *, const char *, size_t);
+typedef void* (*cfg_alloc_fn)();
+typedef void (*cfg_free_fn)(void *);
+
+typedef struct cfgtype_desc_s {
+    const char *name;
+    cfg_type_e cfgtype;
+    cfg_alloc_fn alloc;
+    cfg_free_fn free;
+    cfg_parse_fn parse;
+} cfgtype_desc_t;
+
+#define CFGTYPE_DESC(name, cfgtype, type) { (name), (cfgtype), (cfg_alloc_fn)alloc_##type, (cfg_free_fn)free_##type, (cfg_parse_fn)parse_##type }
+
+typedef struct ziti_host_s ziti_host_t;
+ziti_host_t *new_ziti_host(ziti_context ztx, ziti_service *service);
+host_ctx_t *new_host_ctx(tunneler_context tnlr_ctx, ziti_host_t *app_host_ctx);
+
 /** context passed through the tunneler SDK for network i/o */
 typedef struct ziti_io_ctx_s {
     ziti_connection      ziti_conn;
@@ -62,7 +80,7 @@ typedef struct ziti_io_ctx_s {
 } ziti_io_context;
 
 struct hosted_io_ctx_s {
-    struct hosted_service_ctx_s *service;
+    host_ctx_t *service;
     ziti_connection client;
     char server_dial_str[64];
     int server_proto_id;
