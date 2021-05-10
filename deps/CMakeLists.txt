@@ -4,7 +4,7 @@ if(NOT TUNNEL_SDK_ONLY)
 
 FetchContent_Declare(ziti-sdk-c
         GIT_REPOSITORY https://github.com/openziti/ziti-sdk-c.git
-        GIT_TAG mbedtls-2.26
+        GIT_TAG ${ZITI_SDK_C_BRANCH}
         )
 set(ZITI_BUILD_TESTS off)
 set(ZITI_BUILD_PROGRAMS off)
