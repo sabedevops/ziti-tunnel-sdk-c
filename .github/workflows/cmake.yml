@@ -15,12 +15,16 @@ jobs:
         os:
           - ubuntu-16.04
           - macOS-latest
-          - windows-latest
         cmake_opts: [ "" ]
         arch: [ x86_64 ]
         toolchain: [ default.cmake ]
 
         include:
+          - os: windows-latest
+            cmake_opts: -G "MinGW Makefiles" -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}\install
+            toolchain: default.cmake
+            arch: [ x86_64 ]
+
           - os: ubuntu-16.04
             install: crossbuild-essential-armhf
             toolchain: Linux-arm.cmake
