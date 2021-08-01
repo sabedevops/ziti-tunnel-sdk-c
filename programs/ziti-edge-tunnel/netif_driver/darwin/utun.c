@@ -124,6 +124,17 @@ static int utun_exclude_rt(netif_handle dev, uv_loop_t *l, const char *addr) {
     return s;
 }
 
+static int utun_add_address(netif_handle tun, const char *addr) {
+    char cmd[1024];
+    snprintf(cmd, sizeof(cmd), "ifconfig %s alias %s %s", "lo0", addr, addr);
+    int s = 0;//system(cmd);
+    return s;
+}
+
+static int utun_delete_address(netif_handle tun, const char *addr) {
+    return -1;
+}
+
 /**
  * open a utun device
  * @param num populated with the unit number of the utun device that was opened
@@ -221,6 +232,8 @@ netif_driver utun_open(char *error, size_t error_len, const char *cidr) {
     driver->add_route    = utun_add_route;
     driver->delete_route = utun_delete_route;
     driver->exclude_rt   = utun_exclude_rt;
+    driver->add_address  = utun_add_address;
+    driver->delete_address = utun_delete_address;
     driver->close        = utun_close;
 
     if (cidr) {

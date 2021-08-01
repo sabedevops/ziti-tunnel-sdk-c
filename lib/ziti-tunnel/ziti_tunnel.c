@@ -76,6 +76,10 @@ tunneler_context ziti_tunneler_init(tunneler_sdk_options *opts, uv_loop_t *loop)
     return ctx;
 }
 
+int ziti_tunneler_add_address(tunneler_context tnlr_ctx, const char *addr) {
+    return tnlr_ctx->opts.netif_driver->add_address(tnlr_ctx->opts.netif_driver->handle, addr);
+}
+
 void ziti_tunneler_exclude_route(tunneler_context tnlr_ctx, const char *dst) {
     address_t *addr = parse_address(dst, NULL);
     uv_interface_address_t *if_addrs;
@@ -203,7 +207,11 @@ void ziti_tunneler_dial_completed(struct io_ctx_s *io, bool ok) {
 }
 
 host_ctx_t *ziti_tunneler_host(tunneler_context tnlr_ctx, const void *ziti_ctx, const char *service_name, cfg_type_e cfg_type, void *config) {
-    return tnlr_ctx->opts.ziti_host((void *) ziti_ctx, tnlr_ctx->loop, service_name, cfg_type, config);
+    host_ctx_t *h = tnlr_ctx->opts.ziti_host((void *) ziti_ctx, tnlr_ctx->loop, service_name, cfg_type, config);
+    if (h != NULL) {
+        h->tnlr_ctx = tnlr_ctx;
+    }
+    return h;
 }
 
 static void send_dns_resp(uint8_t *resp, size_t resp_len, void *ctx) {
