@@ -188,8 +188,8 @@ extern tunneler_context ziti_tunneler_init(tunneler_sdk_options *opts, uv_loop_t
 
 extern void ziti_tunneler_exclude_route(tunneler_context tnlr_ctx, const char* dst);
 
-extern int ziti_tunneler_add_address(tunneler_context tnlr_ctx, const char *addr);
-extern int ziti_tunneler_delete_address(tunneler_context tnlr_ctx, const char *addr);
+extern int ziti_tunneler_add_local_address(tunneler_context tnlr_ctx, const char *addr);
+extern int ziti_tunneler_delete_local_address(tunneler_context tnlr_ctx, const char *addr);
 
 /** called by tunneler application when it is done with a tunneler_context.
  * calls `stop_intercepting` for each intercepted service. */

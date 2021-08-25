@@ -76,11 +76,16 @@ tunneler_context ziti_tunneler_init(tunneler_sdk_options *opts, uv_loop_t *loop)
     return ctx;
 }
 
-int ziti_tunneler_add_address(tunneler_context tnlr_ctx, const char *addr) {
-    return tnlr_ctx->opts.netif_driver->add_address(tnlr_ctx->opts.netif_driver->handle, addr);
+int ziti_tunneler_add_local_address(tunneler_context tnlr_ctx, const char *addr) {
+    return tnlr_ctx->opts.netif_driver->add_local_address(tnlr_ctx->opts.netif_driver->handle, addr);
+}
+
+int ziti_tunneler_delete_local_address(tunneler_context tnlr_ctx, const char *addr) {
+    return tnlr_ctx->opts.netif_driver->delete_local_address(tnlr_ctx->opts.netif_driver->handle, addr);
 }
 
 void ziti_tunneler_exclude_route(tunneler_context tnlr_ctx, const char *dst) {
+    return;
     address_t *addr = parse_address(dst, NULL);
     uv_interface_address_t *if_addrs;
     int err, num_if_addrs;

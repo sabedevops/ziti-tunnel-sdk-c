@@ -117,6 +117,8 @@ static void hosted_server_close_cb(uv_handle_t *handle) {
         safe_free(handle->data);
         handle->data = NULL;
     }
+
+//    ziti_tunneler_delete_local_address(io_ctx->) // todo associate src address with io...
 }
 
 static void tcp_shutdown_cb(uv_shutdown_t *req, int res) {
@@ -591,7 +593,7 @@ static void on_hosted_client_connect(ziti_connection serv, ziti_connection clt, 
             ZITI_LOG(DEBUG, "hosted_service[%s], client[%s]: getaddrinfo(%s,%s) returned multiple results; using first",
                      service_ctx->service_name, client_identity, source_addr, source_port);
         }
-        ziti_tunneler_add_address(service_ctx->tnlr_ctx, source_addr);
+        ziti_tunneler_add_local_address(service_ctx->tnlr_ctx, source_addr);
     }
 
     io_ctx = calloc(1, sizeof(struct hosted_io_ctx_s));
