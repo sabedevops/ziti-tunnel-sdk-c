@@ -39,12 +39,14 @@ limitations under the License.
 
 /********** hosting **********/
 
+#define safe_free(p) if ((p) != NULL) free((p))
 
 static void ziti_conn_close_cb(ziti_connection zc) {
     struct hosted_io_ctx_s *io_ctx = ziti_conn_data(zc);
     if (io_ctx) {
         ZITI_LOG(TRACE, "hosted_service[%s] client[%s] ziti_conn[%p] closed",
                  io_ctx->service->service_name, ziti_conn_source_identity(zc), zc);
+        safe_free(io_ctx->client_ip);
         free(io_ctx);
         ziti_conn_set_data(zc, NULL);
     } else {
@@ -63,8 +65,6 @@ static void on_hosted_udp_client_write(uv_udp_send_t* req, int status) {
     free(req->data);
     free(req);
 }
-
-#define safe_free(p) if ((p) != NULL) free((p))
 
 #define STAILQ_CLEAR(slist_head, free_fn) do { \
     while (!STAILQ_EMPTY(slist_head)) { \
@@ -118,7 +118,9 @@ static void hosted_server_close_cb(uv_handle_t *handle) {
         handle->data = NULL;
     }
 
-//    ziti_tunneler_delete_local_address(io_ctx->) // todo associate src address with io...
+    if (io_ctx->client_ip != NULL) {
+        ziti_tunneler_delete_local_address(io_ctx->service->tnlr_ctx, io_ctx->client_ip);
+    }
 }
 
 static void tcp_shutdown_cb(uv_shutdown_t *req, int res) {
@@ -569,36 +571,41 @@ static void on_hosted_client_connect(ziti_connection serv, ziti_connection clt, 
     }
 
     const char *source_addr = app_data.source_addr;
+    char *source_ip = NULL;
     if (source_addr != NULL && *source_addr != 0) {
         struct addrinfo source_hints = {0};
         const char *port_sep = strchr(source_addr, ':');
         const char *source_port = NULL;
-        char source_ip_cp[64];
+        size_t source_ip_len;
         if (port_sep != NULL) {
             source_port = port_sep + 1;
-            strncpy(source_ip_cp, source_addr, port_sep - source_addr);
-            source_ip_cp[port_sep - source_addr] = '\0';
-            source_addr = source_ip_cp;
+            source_ip_len = port_sep - source_addr;
+        } else {
+            source_ip_len = strlen(source_addr);
         }
+        source_ip = calloc(source_ip_len+1, sizeof(char));
+        memcpy(source_ip, source_addr, source_ip_len);
         source_hints.ai_flags = AI_ADDRCONFIG | AI_NUMERICHOST | AI_NUMERICSERV;
         source_hints.ai_protocol = dial_ai_params.hints.ai_protocol;
         source_hints.ai_socktype = dial_ai_params.hints.ai_socktype;
-        if ((s = getaddrinfo(source_addr, source_port, &source_hints, &source_ai)) != 0) {
+        if ((s = getaddrinfo(source_ip, source_port, &source_hints, &source_ai)) != 0) {
             ZITI_LOG(ERROR, "hosted_service[%s], client[%s]: getaddrinfo(%s,%s) failed: %s",
-                     service_ctx->service_name, client_identity, source_addr, source_port, gai_strerror(s));
+                     service_ctx->service_name, client_identity, source_ip, source_port, gai_strerror(s));
             err = true;
+            free(source_ip);
             goto done;
         }
         if (source_ai->ai_next != NULL) {
             ZITI_LOG(DEBUG, "hosted_service[%s], client[%s]: getaddrinfo(%s,%s) returned multiple results; using first",
                      service_ctx->service_name, client_identity, source_addr, source_port);
         }
-        ziti_tunneler_add_local_address(service_ctx->tnlr_ctx, source_addr);
+        ziti_tunneler_add_local_address(service_ctx->tnlr_ctx, source_ip);
     }
 
     io_ctx = calloc(1, sizeof(struct hosted_io_ctx_s));
     io_ctx->service = service_ctx;
     io_ctx->client = clt;
+    io_ctx->client_ip = source_ip;
     io_ctx->server_proto_id = dial_ai->ai_protocol;
     ziti_conn_set_data(clt, io_ctx);
 
