@@ -71,17 +71,42 @@ tunneler_context ziti_tunneler_init(tunneler_sdk_options *opts, uv_loop_t *loop)
     ctx->loop = loop;
     memcpy(&ctx->opts, opts, sizeof(ctx->opts));
     STAILQ_INIT(&ctx->intercepts);
+    LIST_INIT(&ctx->client_ips);
     run_packet_loop(loop, ctx);
 
     return ctx;
 }
 
 int ziti_tunneler_add_local_address(tunneler_context tnlr_ctx, const char *addr) {
-    return tnlr_ctx->opts.netif_driver->add_local_address(tnlr_ctx->opts.netif_driver->handle, addr);
+    struct client_ip_entry_s *entry;
+    LIST_FOREACH(entry, &tnlr_ctx->client_ips, _next) {
+        if (strcmp(addr, entry->ip) == 0) {
+            entry->count++;
+            return 0;
+        }
+    }
+    int s = tnlr_ctx->opts.netif_driver->add_local_address(tnlr_ctx->opts.netif_driver->handle, addr);
+    if (s == 0) {
+        entry = calloc(1, sizeof(struct client_ip_entry_s));
+        strncpy(entry->ip, addr, sizeof(entry->ip));
+        entry->count = 1;
+        LIST_INSERT_HEAD(&tnlr_ctx->client_ips, entry, _next);
+    }
+    return s;
 }
 
 int ziti_tunneler_delete_local_address(tunneler_context tnlr_ctx, const char *addr) {
-    return tnlr_ctx->opts.netif_driver->delete_local_address(tnlr_ctx->opts.netif_driver->handle, addr);
+    struct client_ip_entry_s *entry;
+    LIST_FOREACH(entry, &tnlr_ctx->client_ips, _next) {
+        if (strcmp(addr, entry->ip) == 0) {
+            entry->count--;
+            break;
+        }
+    }
+    if (entry != NULL && entry->count == 0) {
+        return tnlr_ctx->opts.netif_driver->delete_local_address(tnlr_ctx->opts.netif_driver->handle, addr);
+    }
+    return 0;
 }
 
 void ziti_tunneler_exclude_route(tunneler_context tnlr_ctx, const char *dst) {
