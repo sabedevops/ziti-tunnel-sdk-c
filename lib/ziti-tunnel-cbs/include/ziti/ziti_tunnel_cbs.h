@@ -117,7 +117,8 @@ DECLARE_MODEL(tunnel_get_mfa_codes, TNL_GET_MFA_CODES)
 #define TUNNEL_EVENTS(XX, ...) \
 XX(ContextEvent, __VA_ARGS__) \
 XX(ServiceEvent, __VA_ARGS__)  \
-XX(MFAEvent, __VA_ARGS__)
+XX(MFAEvent, __VA_ARGS__)      \
+XX(MFAStatusEvent, __VA_ARGS__)
 
 DECLARE_ENUM(TunnelEvent, TUNNEL_EVENTS)
 
@@ -126,16 +127,32 @@ XX(identifier, string, none, identifier, __VA_ARGS__) \
 XX(event_type, TunnelEvent, none, type, __VA_ARGS__)
 
 #define ZTX_EVENT_MODEL(XX, ...)  \
+BASE_EVENT_MODEL(XX, __VA_ARGS__) \
+XX(status, string, none, status, __VA_ARGS__) \
+XX(name, string, none, name, __VA_ARGS__) \
+XX(version, string, none, version, __VA_ARGS__) \
+XX(controller, string, none, controller, __VA_ARGS__) \
+XX(code, int, none, code, __VA_ARGS__)
+
+#define ZTX_SVC_EVENT_MODEL(XX, ...)  \
 BASE_EVENT_MODEL(XX, __VA_ARGS__)            \
-XX(status, string, none, status, __VA_ARGS__)
+XX(status, string, none, status, __VA_ARGS__) \
+XX(added_services, ziti_service, array, added_services, __VA_ARGS__) \
+XX(removed_services, ziti_service, array, added_services, __VA_ARGS__)
 
 #define MFA_EVENT_MODEL(XX, ...)  \
 BASE_EVENT_MODEL(XX, __VA_ARGS__)               \
-XX(provider, string, none, provider, __VA_ARGS__)
+XX(provider, string, none, provider, __VA_ARGS__) \
+XX(status, string, none, status, __VA_ARGS__)   \
+XX(operation, string, none, operation, __VA_ARGS__) \
+XX(provisioning_url, string, none, provisioning_url, __VA_ARGS__) \
+XX(recovery_codes, string, none, recovery_codes, __VA_ARGS__) \
+XX(code, int, none, code, __VA_ARGS__)
 
 DECLARE_MODEL(base_event, BASE_EVENT_MODEL)
 DECLARE_MODEL(ziti_ctx_event, ZTX_EVENT_MODEL)
 DECLARE_MODEL(mfa_event, MFA_EVENT_MODEL)
+DECLARE_MODEL(service_event, ZTX_SVC_EVENT_MODEL)
 
 /** context passed through the tunneler SDK for network i/o */
 typedef struct ziti_io_ctx_s {
@@ -195,7 +212,6 @@ tunneled_service_t *ziti_sdk_c_on_service(ziti_context ziti_ctx, ziti_service *s
 void remove_intercepts(ziti_context ziti_ctx, void *tnlr_ctx);
 
 const ziti_tunnel_ctrl* ziti_tunnel_init_cmd(uv_loop_t *loop, tunneler_context, event_cb);
-
 
 #ifdef __cplusplus
 }

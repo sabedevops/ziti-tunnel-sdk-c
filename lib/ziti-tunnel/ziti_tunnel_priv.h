@@ -36,7 +36,12 @@ struct intercept_ctx_s {
     address_list_t addresses;
     port_range_list_t port_ranges;
 
-    STAILQ_ENTRY(intercept_ctx_s) entries;
+    ziti_sdk_dial_cb dial_fn;
+    ziti_sdk_write_cb write_fn;
+    ziti_sdk_close_cb close_write_fn;
+    ziti_sdk_close_cb close_fn;
+
+    LIST_ENTRY(intercept_ctx_s) entries;
 };
 
 struct client_ip_entry_s {
@@ -58,13 +63,11 @@ typedef struct tunneler_ctx_s {
     uv_loop_t      *loop;
     uv_poll_t    netif_poll_req;
     uv_timer_t   lwip_timer_req;
-    STAILQ_HEAD(intercept_ctx_list_s, intercept_ctx_s) intercepts;
+    LIST_HEAD(intercept_ctx_list_s, intercept_ctx_s) intercepts;
 //    STAILQ_HEAD(hosted_service_ctx_list_s, hosted_service_ctx_s) hosts;
     LIST_HEAD(client_ips_list_s, client_ip_entry_s) client_ips;
     LIST_HEAD(exclusions, excluded_route_s) excluded_rts;
 
-    dns_manager *dns;
-    struct udp_pcb *dns_pcb;
 } *tunneler_context;
 
 /** return the intercept context for a packet based on its destination ip:port */
@@ -89,9 +92,12 @@ struct tunneler_io_ctx_s {
         } udp;
     };
     uv_timer_t *conn_timer;
+    uint32_t idle_timeout;
 };
 
 extern void free_tunneler_io_context(tunneler_io_context *tnlr_io_ctx_p);
+
+extern void free_intercept(intercept_ctx_t *intercept);
 
 struct write_ctx_s;
 
@@ -105,8 +111,6 @@ struct write_ctx_s {
     };
     ack_fn ack;
 };
-
-const char* assign_ip(const char *hostname);
 
 extern int add_route(netif_driver tun, address_t *dest);
 
