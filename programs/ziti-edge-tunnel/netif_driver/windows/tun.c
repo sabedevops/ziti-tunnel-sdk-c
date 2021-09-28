@@ -375,7 +375,7 @@ int loopback_add_address(netif_handle tun, const char *addr) {
     FreeMibTable(ip_table);
     ip_table = NULL;
 
-    address_t *a = parse_address(addr, NULL); // todo pass dns manager from tnlr_ctx
+    address_t *a = parse_address(addr);
     if (a == NULL) {
         ZITI_LOG(ERROR, "failed to parse address %s", addr);
         return 1;
