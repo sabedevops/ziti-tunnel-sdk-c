@@ -320,7 +320,7 @@ static void on_hosted_udp_server_data(uv_udp_t* handle, ssize_t nread, const uv_
         if (buf->base != NULL) {
             free(buf->base);
         }
-        ZITI_LOG(ERROR, "error receiving data from hosted service %s", io_ctx->service->service_name);
+        ZITI_LOG(ERROR, "error receiving data from hosted service %s: %d", io_ctx->service->service_name, nread);
         hosted_server_close(io_ctx);
     }
 }
@@ -382,26 +382,6 @@ struct addrinfo_params_s {
     struct addrinfo hints;
     char            err[128];
 };
-
-static int get_protocol_id(const char *protocol) {
-    if (strcasecmp(protocol, "tcp") == 0) {
-        return IPPROTO_TCP;
-    } else if (strcasecmp(protocol, "udp") == 0) {
-        return IPPROTO_UDP;
-    }
-    return -1;
-}
-
-static const char *get_protocol_str(int protocol_id) {
-    switch (protocol_id) {
-        case IPPROTO_TCP:
-            return "tcp";
-        case IPPROTO_UDP:
-            return "udp";
-        default:
-            return "NUL";
-    }
-}
 
 static bool addrinfo_from_host_ctx(struct addrinfo_params_s *dial_params, const host_ctx_t *host_ctx, tunneler_app_data *app_data) {
     const char *dial_protocol_str = NULL;

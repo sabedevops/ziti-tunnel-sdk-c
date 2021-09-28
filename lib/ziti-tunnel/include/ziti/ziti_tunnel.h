@@ -99,6 +99,9 @@ typedef host_ctx_t * (*ziti_sdk_host_cb)(void *ziti_ctx, uv_loop_t *loop, const 
 typedef struct intercept_ctx_s  intercept_ctx_t;
 extern intercept_ctx_t* intercept_ctx_new(tunneler_context tnlt_ctx, const char *app_id, void *app_intercept_ctx);
 
+extern int get_protocol_id(const char *protocol);
+extern const char *get_protocol_str(int protocol_id);
+
 extern void intercept_ctx_add_protocol(intercept_ctx_t *ctx, const char *protocol);
 /** parse address string as hostname|ip|cidr and add result to list of intercepted addresses */
 extern address_t *intercept_ctx_add_address(intercept_ctx_t *i_ctx, const char *address);
