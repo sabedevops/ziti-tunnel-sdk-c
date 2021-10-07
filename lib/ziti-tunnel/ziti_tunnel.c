@@ -215,7 +215,7 @@ int create_rawsock_forwarders(tunneler_context tnlr, const char *ip) {
             TNL_LOG(DEBUG, "ip %s needs to be intercepted for service[%s]", ip, intercept->service_name);
             protocol_t *proto;
             STAILQ_FOREACH(proto, &intercept->protocols, entries) {
-                TNL_LOG(DEBUG, "creating raw %s socket to intercept spoofed ip %s", proto, ip);
+                TNL_LOG(DEBUG, "creating raw %s socket to intercept spoofed ip %s", proto->protocol, ip);
                 if (create_rawsock_forwarder(tnlr, proto->protocol, local_addr) == NULL) {
                     // todo clean up any forwarders that were created. attach forwarders to intercept context?
                     return -1;
@@ -239,7 +239,7 @@ int ziti_tunneler_add_local_address(tunneler_context tnlr_ctx, const char *addr)
     int s = tnlr_ctx->opts.netif_driver->add_local_address(tnlr_ctx->opts.netif_driver->handle, addr);
     if (s != 0) {
         TNL_LOG(ERR, "add_local_address failed: e = %d", s);
-        return s;
+        //return s;
     }
 
     /* the tunneler may need to intercept this ip, but packets to it won't be dispatched to the tun
@@ -392,10 +392,7 @@ void ziti_tunneler_dial_completed(struct io_ctx_s *io, bool ok) {
 }
 
 host_ctx_t *ziti_tunneler_host(tunneler_context tnlr_ctx, const void *ziti_ctx, const char *service_name, cfg_type_e cfg_type, void *config) {
-    host_ctx_t *h = tnlr_ctx->opts.ziti_host((void *) ziti_ctx, tnlr_ctx->loop, service_name, cfg_type, config);
-    if (h != NULL) {
-        h->tnlr_ctx = tnlr_ctx;
-    }
+    host_ctx_t *h = tnlr_ctx->opts.ziti_host((void *) ziti_ctx, tnlr_ctx, tnlr_ctx->loop, service_name, cfg_type, config);
     return h;
 }
 

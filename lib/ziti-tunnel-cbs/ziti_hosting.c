@@ -772,7 +772,7 @@ static void listen_opts_from_host_cfg_v1(ziti_listen_opts *opts, const ziti_host
 }
 
 /** called by the tunneler sdk when a hosted service becomes available */
-host_ctx_t *ziti_sdk_c_host(void *ziti_ctx, uv_loop_t *loop, const char *service_name, cfg_type_e cfg_type, const void *cfg) {
+host_ctx_t *ziti_sdk_c_host(void *ziti_ctx, tunneler_context tnlr_ctx, uv_loop_t *loop, const char *service_name, cfg_type_e cfg_type, const void *cfg) {
     if (service_name == NULL) {
         ZITI_LOG(ERROR, "null service_name");
         return NULL;
@@ -781,6 +781,7 @@ host_ctx_t *ziti_sdk_c_host(void *ziti_ctx, uv_loop_t *loop, const char *service
     struct hosted_service_ctx_s *host_ctx = calloc(1, sizeof(struct hosted_service_ctx_s));
     host_ctx->service_name = strdup(service_name);
     host_ctx->ziti_ctx = ziti_ctx;
+    host_ctx->tnlr_ctx = tnlr_ctx;
     host_ctx->loop = loop;
     host_ctx->cfg_type = cfg_type;
     host_ctx->cfg = cfg;
