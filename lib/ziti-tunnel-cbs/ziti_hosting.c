@@ -29,12 +29,6 @@
 #include <ziti/ziti_tunnel_cbs.h>
 #include "ziti_hosting.h"
 
-#if _WIN32
-#ifndef strcasecmp
-#define strcasecmp(a,b) stricmp(a,b)
-#endif
-#endif
-
 #define ZITI_MTU (15 * 1024)
 #define MAX_OUTSTANDING_WRITES 8
 

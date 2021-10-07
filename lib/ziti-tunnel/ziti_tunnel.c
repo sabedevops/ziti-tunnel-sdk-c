@@ -14,9 +14,13 @@
  limitations under the License.
  */
 
-// something wrong with lwip_xxxx byteorder functions
 #ifdef _WIN32
+// something wrong with lwip_xxxx byteorder functions
 #define LWIP_DONT_PROVIDE_BYTEORDER_FUNCTIONS 1
+
+#ifndef strcasecmp
+#define strcasecmp(a,b) stricmp(a,b)
+#endif
 #endif
 
 #if defined(__mips) || defined(__mips__)
@@ -137,7 +141,7 @@ static struct rawsock_forwarder *create_rawsock_forwarder(tunneler_context tnlr,
     if (ioctlsocket(sock, FIONBIO, &nonblock) == SOCKET_ERROR) {
         TNL_LOG(ERR, "failed to set FIONBIO: err=%ld", SOCKET_ERRNO);
         close_socket(sock);
-        return SOCKET_ERROR;
+        return NULL;
     }
 #else
     int flags = fcntl(sock, F_GETFL, 0);
