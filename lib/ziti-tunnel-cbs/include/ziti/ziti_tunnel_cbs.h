@@ -1,3 +1,19 @@
+/*
+ Copyright 2021 NetFoundry Inc.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+ https://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
+
 #ifndef ZITI_TUNNELER_SDK_ZITI_TUNNEL_CBS_H
 #define ZITI_TUNNELER_SDK_ZITI_TUNNEL_CBS_H
 
@@ -30,7 +46,8 @@ XX(SubmitMFA, __VA_ARGS__)  \
 XX(VerifyMFA, __VA_ARGS__)  \
 XX(RemoveMFA, __VA_ARGS__)  \
 XX(GenerateMFACodes, __VA_ARGS__) \
-XX(GetMFACodes, __VA_ARGS__)
+XX(GetMFACodes, __VA_ARGS__) \
+XX(GetMetrics, __VA_ARGS__)
 
 DECLARE_ENUM(TunnelCommand, TUNNEL_COMMANDS)
 
@@ -98,6 +115,18 @@ XX(recovery_codes, string, array, recovery_codes, __VA_ARGS__)
 XX(identifier, string, none, id, __VA_ARGS__) \
 XX(code, string, none, code, __VA_ARGS__)
 
+#define TNL_GET_IDENTITY_METRICS(XX, ...) \
+XX(identifier, string, none, id, __VA_ARGS__)
+
+#define TNL_IDENTITY_METRICS(XX, ...) \
+XX(identifier, string, none, id, __VA_ARGS__) \
+XX(up, string, none, up, __VA_ARGS__) \
+XX(down, string, none, down, __VA_ARGS__)
+
+#define TUNNEL_CMD_INLINE(XX, ...) \
+XX(identifier, string, none, id, __VA_ARGS__) \
+XX(command, TunnelCommand, none, command, __VA_ARGS__)
+
 DECLARE_MODEL(tunnel_comand, TUNNEL_CMD)
 DECLARE_MODEL(tunnel_result, TUNNEL_CMD_RES)
 DECLARE_MODEL(tunnel_load_identity, TNL_LOAD_IDENTITY)
@@ -113,6 +142,9 @@ DECLARE_MODEL(tunnel_remove_mfa, TNL_REMOVE_MFA)
 DECLARE_MODEL(tunnel_generate_mfa_codes, TNL_GENERATE_MFA_CODES)
 DECLARE_MODEL(tunnel_mfa_recovery_codes, TNL_MFA_RECOVERY_CODES)
 DECLARE_MODEL(tunnel_get_mfa_codes, TNL_GET_MFA_CODES)
+DECLARE_MODEL(tunnel_get_identity_metrics, TNL_GET_IDENTITY_METRICS)
+DECLARE_MODEL(tunnel_identity_metrics, TNL_IDENTITY_METRICS)
+DECLARE_MODEL(tunnel_command_inline, TUNNEL_CMD_INLINE)
 
 #define TUNNEL_EVENTS(XX, ...) \
 XX(ContextEvent, __VA_ARGS__) \
@@ -121,6 +153,14 @@ XX(MFAEvent, __VA_ARGS__)      \
 XX(MFAStatusEvent, __VA_ARGS__)
 
 DECLARE_ENUM(TunnelEvent, TUNNEL_EVENTS)
+
+#define MFA_STATUS(XX, ...) \
+XX(mfa_auth_status, __VA_ARGS__) \
+XX(enrollment_verification, __VA_ARGS__) \
+XX(enrollment_remove, __VA_ARGS__) \
+XX(enrollment_challenge, __VA_ARGS__)
+
+DECLARE_ENUM(mfa_status, MFA_STATUS)
 
 #define BASE_EVENT_MODEL(XX, ...) \
 XX(identifier, string, none, identifier, __VA_ARGS__) \
@@ -145,14 +185,17 @@ BASE_EVENT_MODEL(XX, __VA_ARGS__)               \
 XX(provider, string, none, provider, __VA_ARGS__) \
 XX(status, string, none, status, __VA_ARGS__)   \
 XX(operation, string, none, operation, __VA_ARGS__) \
+XX(operation_type, mfa_status, none, operation_type, __VA_ARGS__ ) \
 XX(provisioning_url, string, none, provisioning_url, __VA_ARGS__) \
-XX(recovery_codes, string, none, recovery_codes, __VA_ARGS__) \
+XX(recovery_codes, string, array, recovery_codes, __VA_ARGS__) \
 XX(code, int, none, code, __VA_ARGS__)
 
 DECLARE_MODEL(base_event, BASE_EVENT_MODEL)
 DECLARE_MODEL(ziti_ctx_event, ZTX_EVENT_MODEL)
 DECLARE_MODEL(mfa_event, MFA_EVENT_MODEL)
 DECLARE_MODEL(service_event, ZTX_SVC_EVENT_MODEL)
+
+typedef struct tunneled_service_s tunneled_service_t;
 
 /** context passed through the tunneler SDK for network i/o */
 typedef struct ziti_io_ctx_s {
@@ -180,6 +223,7 @@ struct hosted_io_ctx_s {
 
 typedef void (*event_cb)(const base_event* event);
 typedef void (*command_cb)(const tunnel_result *, void *ctx);
+typedef void (*transfer_rates_cb)(const tunnel_identity_metrics *, void *ctx);
 typedef struct {
     int (*process)(const tunnel_comand *cmd, command_cb cb, void *ctx);
     int (*load_identity)(const char *identifier, const char *path, command_cb, void *ctx);
