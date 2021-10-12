@@ -657,7 +657,7 @@ static void on_hosted_client_connect(ziti_connection serv, ziti_connection clt, 
             uv_udp_init(service_ctx->loop, &io_ctx->server.udp);
             io_ctx->server.udp.data = io_ctx;
             if (source_ai != NULL) {
-                uv_err = uv_udp_bind(&io_ctx->server.udp, source_ai->ai_addr, 0);
+                uv_err = uv_udp_bind(&io_ctx->server.udp, source_ai->ai_addr, UV_UDP_REUSEADDR);
                 if (uv_err != 0) {
                     ZITI_LOG(ERROR, "hosted_service[%s] client[%s]: uv_udp_bind failed: %s",
                              service_ctx->service_name, client_identity, uv_err_name(uv_err));
