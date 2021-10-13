@@ -112,6 +112,7 @@ static void free_rawsock_forwarder(struct rawsock_forwarder *fwd) {
 }
 
 static void forward_packet(uv_poll_t* watcher, int status, int revents) {
+    TNL_LOG(INFO, "status=%d", status);
     struct rawsock_forwarder *fwd = watcher->data;
     if (status != 0) {
         TNL_LOG(ERR, "error reading from raw socket watcher %s: %d", fwd->ip, status);
@@ -120,7 +121,8 @@ static void forward_packet(uv_poll_t* watcher, int status, int revents) {
 
     if (revents & UV_READABLE) {
         char buf[16384]; // todo size to mtu
-        ssize_t n = recvfrom(fwd->sock, buf, sizeof(buf), 0, NULL, NULL);
+        TNL_LOG(INFO, "got readable event on raw socket!");
+        ssize_t n = recvfrom(fwd->sock, buf, sizeof(buf), 0, NULL, 0);
         if (n < 0) {
             TNL_LOG(ERR, "error reading from raw socket %s: err=%d", fwd->ip, SOCKET_ERRNO);
             on_packet(buf, n, &fwd->tnlr->netif);
@@ -132,30 +134,9 @@ static struct rawsock_forwarder *create_rawsock_forwarder(tunneler_context tnlr,
     int proto_id = get_protocol_id(proto);
     SOCKET sock = socket(AF_INET, SOCK_RAW, proto_id);
     if (sock == SOCKET_ERROR) {
-        TNL_LOG(ERR, "failed to create raw %e socket for %e: err=%d", proto, local_addr->str, SOCKET_ERRNO);
+        TNL_LOG(ERR, "failed to create raw %s socket for %s: err=%d", proto, local_addr->str, SOCKET_ERRNO);
         return NULL;
     }
-
-#if _WIN32
-    unsigned long nonblock = 1;
-    if (ioctlsocket(sock, FIONBIO, &nonblock) == SOCKET_ERROR) {
-        TNL_LOG(ERR, "failed to set FIONBIO: err=%ld", SOCKET_ERRNO);
-        close_socket(sock);
-        return NULL;
-    }
-#else
-    int flags = fcntl(sock, F_GETFL, 0);
-    if (flags == SOCKET_ERROR) {
-        TNL_LOG(ERR, "fcntl(F_GETFL) failed: err=%d", SOCKET_ERRNO);
-        close_socket(sock);
-        return NULL;
-    }
-    if (fcntl(sock, F_SETFL, flags | O_NONBLOCK) == SOCKET_ERROR) {
-        TNL_LOG(ERR, "failed to set O_NONBLOCK: err=%d", SOCKET_ERRNO);
-        close_socket(sock);
-        return NULL;
-    }
-#endif
 
     struct sockaddr_in ip = {
             .sin_family = AF_INET,
@@ -171,7 +152,7 @@ static struct rawsock_forwarder *create_rawsock_forwarder(tunneler_context tnlr,
 
     struct rawsock_forwarder *fwd = calloc(1, sizeof(struct rawsock_forwarder));
     if (fwd == NULL) {
-        TNL_LOG(ERR, "failed to allocate rawsock_forwarder for %s", ip);
+        TNL_LOG(ERR, "failed to allocate rawsock_forwarder for %s", local_addr->str);
         close_socket(sock);
         return NULL;
     }
@@ -190,7 +171,7 @@ static struct rawsock_forwarder *create_rawsock_forwarder(tunneler_context tnlr,
 
     e = uv_poll_start(&fwd->watcher, UV_READABLE, forward_packet);
     if (e != 0) {
-        TNL_LOG(ERR, "failed to start poll watcher for %s: err=%d", local_addr->str);
+        TNL_LOG(ERR, "failed to start poll watcher for %s: err=%d", local_addr->str, e);
         close_socket(sock);
         free(fwd);
         return NULL;
@@ -215,11 +196,12 @@ int create_rawsock_forwarders(tunneler_context tnlr, const char *ip) {
     int num_forwarders = 0;
     intercept_ctx_t *intercept;
     LIST_FOREACH(intercept, &tnlr->intercepts, entries) {
+        TNL_LOG(INFO, "checking if spoofed ip %s is intercepted for service[%s]", ip, intercept->service_name);
         if (address_match(&local_addr->ip, &intercept->addresses)) {
-            TNL_LOG(DEBUG, "ip %s needs to be intercepted for service[%s]", ip, intercept->service_name);
+            TNL_LOG(INFO, "ip %s needs to be intercepted for service[%s]", ip, intercept->service_name);
             protocol_t *proto;
             STAILQ_FOREACH(proto, &intercept->protocols, entries) {
-                TNL_LOG(DEBUG, "creating raw %s socket to intercept spoofed ip %s", proto->protocol, ip);
+                TNL_LOG(INFO, "creating raw %s socket to intercept spoofed ip %s", proto->protocol, ip);
                 if (create_rawsock_forwarder(tnlr, proto->protocol, local_addr) == NULL) {
                     // todo clean up any forwarders that were created. attach forwarders to intercept context?
                     return -1;
