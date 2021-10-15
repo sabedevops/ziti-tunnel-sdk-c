@@ -635,7 +635,7 @@ static void on_hosted_client_connect(ziti_connection serv, ziti_connection clt, 
             io_ctx->server.tcp.data = io_ctx;
             if (source_ai != NULL) {
                 uv_err = uv_tcp_bind(&io_ctx->server.tcp, source_ai->ai_addr, 0);
-                if (uv_err != 0) {
+                if (uv_err != 0 && uv_err != UV_EADDRNOTAVAIL) {
                     ZITI_LOG(ERROR, "hosted_service[%s], client[%s]: uv_tcp_bind failed: %s",
                              service_ctx->service_name, client_identity, uv_err_name(uv_err));
                     err = true;
@@ -658,7 +658,7 @@ static void on_hosted_client_connect(ziti_connection serv, ziti_connection clt, 
             io_ctx->server.udp.data = io_ctx;
             if (source_ai != NULL) {
                 uv_err = uv_udp_bind(&io_ctx->server.udp, source_ai->ai_addr, UV_UDP_REUSEADDR);
-                if (uv_err != 0) {
+                if (uv_err != 0 && uv_err != UV_EADDRNOTAVAIL) {
                     ZITI_LOG(ERROR, "hosted_service[%s] client[%s]: uv_udp_bind failed: %s",
                              service_ctx->service_name, client_identity, uv_err_name(uv_err));
                     err = true;
