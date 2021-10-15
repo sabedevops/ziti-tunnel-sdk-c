@@ -50,5 +50,5 @@ BUNDLE_COMP(ziti-edge-tunnel)
 install(TARGETS ziti-edge-tunnel
         DESTINATION ${CMAKE_INSTALL_BINDIR}
         )
-add_executable(rawsock_reader rawsock_reader.c)
-target_link_libraries(rawsock_reader PUBLIC ziti)
+#add_executable(rawsock_reader rawsock_reader.c)
+#target_link_libraries(rawsock_reader PUBLIC ziti)
