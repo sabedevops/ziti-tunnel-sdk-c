@@ -183,6 +183,7 @@ u8_t recv_udp(void *tnlr_ctx_arg, struct raw_pcb *pcb, struct pbuf *p, const ip_
                 con_pcb->next = udp_pcbs;
                 udp_pcbs = con_pcb;
             }
+            udphdr->chksum = 0; // todo remove this when packets from rawsock have correct checksum
             return 0; // let lwip process the datagram
         }
     }
