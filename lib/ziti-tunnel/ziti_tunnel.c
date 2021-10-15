@@ -112,7 +112,6 @@ static void free_rawsock_forwarder(struct rawsock_forwarder *fwd) {
 }
 
 static void forward_packet(uv_poll_t* watcher, int status, int revents) {
-    TNL_LOG(INFO, "status=%d", status);
     struct rawsock_forwarder *fwd = watcher->data;
     if (status != 0) {
         TNL_LOG(ERR, "error reading from raw socket watcher %s: %d", fwd->ip, status);
