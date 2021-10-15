@@ -121,12 +121,14 @@ static void forward_packet(uv_poll_t* watcher, int status, int revents) {
 
     if (revents & UV_READABLE) {
         char buf[16384]; // todo size to mtu
-        TNL_LOG(INFO, "got readable event on raw socket!");
+        TNL_LOG(TRACE, "got readable event on raw socket!");
         ssize_t n = recvfrom(fwd->sock, buf, sizeof(buf), 0, NULL, 0);
         if (n < 0) {
             TNL_LOG(ERR, "error reading from raw socket %s: err=%d", fwd->ip, SOCKET_ERRNO);
-            on_packet(buf, n, &fwd->tnlr->netif);
+            return;
         }
+        // todo fix packet checksum
+        on_packet(buf, n, &fwd->tnlr->netif);
     }
 }
 
@@ -169,6 +171,7 @@ static struct rawsock_forwarder *create_rawsock_forwarder(tunneler_context tnlr,
         return NULL;
     }
 
+    fwd->watcher.data = fwd;
     e = uv_poll_start(&fwd->watcher, UV_READABLE, forward_packet);
     if (e != 0) {
         TNL_LOG(ERR, "failed to start poll watcher for %s: err=%d", local_addr->str, e);
