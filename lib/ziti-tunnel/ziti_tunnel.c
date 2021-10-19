@@ -221,7 +221,7 @@ int ziti_tunneler_add_local_address(tunneler_context tnlr_ctx, const char *addr)
     LIST_FOREACH(entry, &tnlr_ctx->client_ips, _next) {
         if (strcmp(addr, entry->ip) == 0) {
             entry->count++;
-            return 0;
+            //return 0;
         }
     }
     int s = tnlr_ctx->opts.netif_driver->add_local_address(tnlr_ctx->opts.netif_driver->handle, addr);
