@@ -187,6 +187,7 @@ static ssize_t on_hosted_client_data(ziti_connection clt, uint8_t *data, ssize_t
             case IPPROTO_UDP: {
                 uv_udp_send_t *req = malloc(sizeof(uv_udp_send_t));
                 req->data = copy;
+                ZITI_LOG(INFO, "writing %s --> %s", io_ctx->client, io_ctx->server_dial_str);
                 int err = uv_udp_send(req, &io_ctx->server.udp, &buf, 1, NULL, on_hosted_udp_client_write);
                 if (err < 0) {
                     ZITI_LOG(ERROR, "uv_udp_send failed: %s", uv_err_name(err));
