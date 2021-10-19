@@ -55,7 +55,7 @@ static void to_ziti(struct io_ctx_s *io, struct pbuf *p) {
     uv_timer_start(io->tnlr_io->conn_timer, udp_timeout_cb, UDP_TIMEOUT, 0);
 
     do {
-        TNL_LOG(TRACE, "writing %d bytes to service[%s]", recv_data->len, io->tnlr_io->service_name);
+        TNL_LOG(INFO, "writing %d bytes to service[%s]", recv_data->len, io->tnlr_io->service_name);
         struct write_ctx_s *wr_ctx = calloc(1, sizeof(struct write_ctx_s));
         wr_ctx->pbuf = recv_data;
         wr_ctx->udp = io->tnlr_io->udp.pcb;
