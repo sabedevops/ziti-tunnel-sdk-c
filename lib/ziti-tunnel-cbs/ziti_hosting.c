@@ -667,6 +667,9 @@ static void on_hosted_client_connect(ziti_connection serv, ziti_connection clt, 
             }
             uv_err = uv_udp_connect(&io_ctx->server.udp, dial_ai->ai_addr);
             if (uv_err != 0) {
+#ifdef _WIN32
+                ZITI_LOG(ERROR, "WSAGetLastError = %d", WSAGetLastError());
+#endif
                 ZITI_LOG(ERROR, "hosted_service[%s], client[%s]: uv_udp_connect failed: %s",
                          service_ctx->service_name, client_identity, uv_err_name(uv_err));
                 err = true;
