@@ -424,7 +424,7 @@ int loopback_add_address(netif_handle tun, const char *addr) {
     //  need to correlate callback invocation with the address being added
 
     status = CreateUnicastIpAddressEntry(addr_row);
-    if (status != NO_ERROR) {
+    if (status != NO_ERROR && status != ERROR_OBJECT_ALREADY_EXISTS) {
         ZITI_LOG(ERROR, "failed to create local address %s: %d", addr, status);
         return 1;
     }
