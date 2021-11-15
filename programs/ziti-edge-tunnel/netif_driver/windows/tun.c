@@ -377,6 +377,16 @@ int tun_del_route(netif_handle tun, const char *dest) {
     return 0;
 }
 
+struct addr_add_ctx_s {
+    HANDLE notify_event;
+    HANDLE complete_event;
+    SOCKADDR_IN addr;
+};
+
+void CALLBACK CallCompleted(PVOID callerContext, PMIB_UNICASTIPADDRESS_ROW row, MIB_NOTIFICATION_TYPE notificationType) {
+    struct addr_add_ctx_s *ctx = callerContext;
+}
+
 int loopback_add_address(netif_handle tun, const char *addr) {
     PMIB_IPINTERFACE_TABLE ip_table = NULL;
     PMIB_UNICASTIPADDRESS_ROW addr_row = NULL;
@@ -420,13 +430,35 @@ int loopback_add_address(netif_handle tun, const char *addr) {
     }
     free(a);
 
-    // todo use NotifyUnicastIpAddressChange to determine when the address is ready
-    //  need to correlate callback invocation with the address being added
+    struct addr_add_ctx_s *ctx = calloc(1, sizeof(struct addr_add_ctx_s));
+    ctx->complete_event = CreateEvent(NULL, FALSE, FALSE, NULL);
+    if (ctx->complete_event == NULL) {
+        ZITI_LOG(ERROR, "CreateEvent failed: %s", GetLastError());
+        free(ctx);
+        return 1;
+    }
+
+    NotifyUnicastIpAddressChange(AF_INET, &CallCompleted, ctx, FALSE, &ctx->notify_event);
 
     status = CreateUnicastIpAddressEntry(addr_row);
     ZITI_LOG(INFO, "CreateUnicastIpAddress e=%d", status);
     if (status != NO_ERROR && status != ERROR_OBJECT_ALREADY_EXISTS) {
         ZITI_LOG(ERROR, "failed to create local address %s: %d", addr, status);
+        CancelMibChangeNotify2(ctx->notify_event);
+        free(ctx);
+        return 1;
+    }
+
+    // wait for address to be added.
+    status = WaitForSingleObject(ctx->complete_event, 3000);
+    CancelMibChangeNotify2(ctx->notify_event);
+    CancelMibChangeNotify2(ctx->complete_event);
+    free(ctx);
+
+    if (status == WAIT_OBJECT_0) {
+        ZITI_LOG(DEBUG, "successfully added %s to loopback interface", addr);
+    } else {
+        ZITI_LOG(ERROR, "wait for address %s failed: %d", addr, status);
         return 1;
     }
 
