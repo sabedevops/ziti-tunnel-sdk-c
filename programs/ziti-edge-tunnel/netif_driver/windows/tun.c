@@ -380,11 +380,35 @@ int tun_del_route(netif_handle tun, const char *dest) {
 struct addr_add_ctx_s {
     HANDLE notify_event;
     HANDLE complete_event;
-    SOCKADDR_IN addr;
+    SOCKADDR_INET addr;
 };
 
-void CALLBACK CallCompleted(PVOID callerContext, PMIB_UNICASTIPADDRESS_ROW row, MIB_NOTIFICATION_TYPE notificationType) {
+// called when IP addresses are changed on the local system
+static void CALLBACK on_address_change(PVOID callerContext, PMIB_UNICASTIPADDRESS_ROW row, MIB_NOTIFICATION_TYPE notificationType) {
+    ZITI_LOG(VERBOSE, "notificationType %d", notificationType);
+
+    if (row == NULL) {
+        ZITI_LOG(VERBOSE, "null row");
+        return;
+    }
+
+    if (callerContext == NULL) {
+        ZITI_LOG(VERBOSE, "null caller context");
+        return;
+    }
     struct addr_add_ctx_s *ctx = callerContext;
+
+    if (notificationType == MibAddInstance) {
+        // check that address matches the one that was added
+        if (row->Address.si_family == AF_INET &&
+            row->Address.Ipv4.sin_addr.S_un.S_addr == ctx->addr.Ipv4.sin_addr.S_un.S_addr) {
+            ZITI_LOG(DEBUG, "added address matches");
+            SetEvent(ctx->complete_event);
+        }
+        if (row->Address.si_family == AF_INET6) {
+            ZITI_LOG(VERBOSE, "ipv6 not handled");
+        }
+    }
 }
 
 int loopback_add_address(netif_handle tun, const char *addr) {
@@ -437,8 +461,9 @@ int loopback_add_address(netif_handle tun, const char *addr) {
         free(ctx);
         return 1;
     }
+    memcpy(&ctx->addr, &addr_row->Address, sizeof(ctx->addr));
 
-    NotifyUnicastIpAddressChange(AF_INET, &CallCompleted, ctx, FALSE, &ctx->notify_event);
+    NotifyUnicastIpAddressChange(AF_INET, &on_address_change, ctx, FALSE, &ctx->notify_event);
 
     status = CreateUnicastIpAddressEntry(addr_row);
     ZITI_LOG(INFO, "CreateUnicastIpAddress e=%d", status);
