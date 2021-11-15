@@ -475,9 +475,11 @@ int loopback_add_address(netif_handle tun, const char *addr) {
     }
 
     // wait for address to be added.
+    ZITI_LOG(DEBUG, "waiting for ip add to complete");
     status = WaitForSingleObject(ctx->complete_event, 3000);
+    ZITI_LOG(DEBUG, "wait status=%d", status);
     CancelMibChangeNotify2(ctx->notify_event);
-    CancelMibChangeNotify2(ctx->complete_event);
+    CloseHandle(ctx->complete_event);
     free(ctx);
 
     if (status == WAIT_OBJECT_0) {
