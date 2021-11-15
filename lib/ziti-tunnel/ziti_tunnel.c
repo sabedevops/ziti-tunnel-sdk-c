@@ -217,17 +217,19 @@ int create_rawsock_forwarders(tunneler_context tnlr, const char *ip) {
 }
 
 int ziti_tunneler_add_local_address(tunneler_context tnlr_ctx, const char *addr) {
+    TNL_LOG(DEBUG, "addr='%s'", addr);
     struct client_ip_entry_s *entry;
     LIST_FOREACH(entry, &tnlr_ctx->client_ips, _next) {
         if (strcmp(addr, entry->ip) == 0) {
+            TNL_LOG(DEBUG, "incrementing reference count for local address %s", addr);
             entry->count++;
-            //return 0;
+            return 0;
         }
     }
     int s = tnlr_ctx->opts.netif_driver->add_local_address(tnlr_ctx->opts.netif_driver->handle, addr);
     if (s != 0) {
         TNL_LOG(ERR, "add_local_address failed: e = %d", s);
-        //return s;
+        return s;
     }
 
     /* the tunneler may need to intercept this ip, but packets to it won't be dispatched to the tun
