@@ -220,6 +220,7 @@ int ziti_tunneler_add_local_address(tunneler_context tnlr_ctx, const char *addr)
     TNL_LOG(DEBUG, "addr='%s'", addr);
     struct client_ip_entry_s *entry;
     LIST_FOREACH(entry, &tnlr_ctx->client_ips, _next) {
+        TNL_LOG(DEBUG, "comparing %s %s", addr, entry->ip);
         if (strcmp(addr, entry->ip) == 0) {
             TNL_LOG(DEBUG, "incrementing reference count for local address %s", addr);
             entry->count++;
@@ -246,9 +247,13 @@ int ziti_tunneler_add_local_address(tunneler_context tnlr_ctx, const char *addr)
 }
 
 int ziti_tunneler_delete_local_address(tunneler_context tnlr_ctx, const char *addr) {
+    TNL_LOG(DEBUG, "addr='%s'", addr);
     struct client_ip_entry_s *entry;
     LIST_FOREACH(entry, &tnlr_ctx->client_ips, _next) {
+        TNL_LOG(DEBUG, "comparing %s %s", addr, entry->ip);
         if (strcmp(addr, entry->ip) == 0) {
+            TNL_LOG(DEBUG, "deccrementing reference count for local address %s", addr);
+            // todo is refcnt decrementing? seems no
             entry->count--;
             break;
         }
