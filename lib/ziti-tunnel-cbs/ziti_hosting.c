@@ -666,7 +666,6 @@ static void on_hosted_client_connect(ziti_connection serv, ziti_connection clt, 
                     goto done;
                 }
             }
-            system("netsh interface ipv4 show ipaddresses");
             uv_err = uv_udp_connect(&io_ctx->server.udp, dial_ai->ai_addr);
             if (uv_err != 0) {
 #ifdef _WIN32
