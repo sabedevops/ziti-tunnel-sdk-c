@@ -52,4 +52,9 @@ BUNDLE_COMP(ziti-edge-tunnel)
 
 install(TARGETS ziti-edge-tunnel
         DESTINATION ${CMAKE_INSTALL_BINDIR}
+	COMPONENT ${PROJECT_NAME}
         )
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/package/CPackPackage.cmake")
+
+include(CPack)

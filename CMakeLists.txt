@@ -18,8 +18,6 @@ string(REGEX MATCH "([0-9]+\\.[0-9]+\\.[0-9]+)" ver "${GIT_VERSION}")
 project(ziti-tunnel-sdk-c
         VERSION "${ver}"
         LANGUAGES C CXX)
-include(CPack)
-set(CPACK_PACKAGE_VENDOR "NetFoundry")
 
 if (MSVC)
     add_compile_options(-Zi)
@@ -34,9 +32,9 @@ file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/bundle)
 
 macro(BUNDLE_COMP comp)
     add_custom_target(${comp}-bundle
-            BYPRODUCTS ${CMAKE_BINARY_DIR}/bundle/${comp}-${CPACK_SYSTEM_NAME}_${CMAKE_SYSTEM_PROCESSOR}.zip
+	    BYPRODUCTS ${CMAKE_BINARY_DIR}/bundle/${comp}-${CMAKE_SYSTEM_NAME}_${CMAKE_SYSTEM_PROCESSOR}.zip
             DEPENDS ${comp}
-            COMMAND 7z a ${CMAKE_BINARY_DIR}/bundle/${comp}-${CPACK_SYSTEM_NAME}_${CMAKE_SYSTEM_PROCESSOR}.zip ${comp}${CMAKE_EXECUTABLE_SUFFIX} ${${comp}_BUNDLE_COMPS}
+	    COMMAND 7z a ${CMAKE_BINARY_DIR}/bundle/${comp}-${CMAKE_SYSTEM_NAME}_${CMAKE_SYSTEM_PROCESSOR}.zip ${comp}${CMAKE_EXECUTABLE_SUFFIX} ${${comp}_BUNDLE_COMPS}
             )
     add_dependencies(bundle ${comp}-bundle)
 endmacro()
@@ -82,3 +80,6 @@ install(TARGETS lwipwin32arch
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
         )
 endif()
+
+#set(CPACK_PACKAGE_VENDOR "NetFoundry")
+#include(CPack)
