@@ -1,11 +1,10 @@
 [Unit]
 Description=Ziti Edge Tunnel
 After=network-online.target
-AssertFileNotEmpty=@ZITI_JWT_FILE@
+AssertFileNotEmpty=@ZITI_IDENTITY_FILE@
 
 [Service]
 Type=simple
-ExecStartPre=@CPACK_BIN_DIR@/@SYSTEMD_SERVICE_NAME@ enroll -i @ZITI_JWT_FILE@ -o @ZITI_IDENTITY_FILE@
 ExecStart=@CPACK_BIN_DIR@/@SYSTEMD_SERVICE_NAME@ run -i @ZITI_IDENTITY_FILE@
 Restart=always
 RestartSec=3
