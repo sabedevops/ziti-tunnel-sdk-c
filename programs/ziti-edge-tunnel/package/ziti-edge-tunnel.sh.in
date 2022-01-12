@@ -1,0 +1,16 @@
+#!/bin/sh
+#
+# ziti-edge-tunnel.sh
+#
+# enroll all identity tokens found in ZITI_IDENTITY_DIR
+
+for JWT in @ZITI_IDENTITY_DIR@/*.jwt; do
+    CONFIG="${JWT%.jwt}.json"
+    if @CPACK_BIN_DIR@/@SYSTEMD_SERVICE_NAME@ enroll --jwt ${JWT} --identity ${CONFIG}; then
+        mv --force ${JWT} ${JWT}.used
+        echo "INFO: enrolled $(basename ${JWT}) in ${CONFIG}"
+    else
+        echo "ERROR: failed to enroll $(basename ${JWT}) in $(dirname ${JWT})" >&2
+        exit 1
+    fi
+done
