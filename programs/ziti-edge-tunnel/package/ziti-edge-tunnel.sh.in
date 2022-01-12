@@ -4,9 +4,22 @@
 #
 # enroll all identity tokens found in ZITI_IDENTITY_DIR
 
-set -e -u -o pipefail
+set -e -u -o pipefail 
 
 for JWT in @ZITI_IDENTITY_DIR@/*.jwt; do
+    # handle case where JWT='@ZITI_IDENTITY_DIR@/*.jwt'
+    [ -e ${JWT} ] || {
+        echo "WARN: no JWT files in ${JWT}" >&2
+        continue
+    }
+    [ -r ${JWT} ] || {
+        echo "WARN: skipping unreadable JWT file in ${JWT}" >&2
+        continue
+    }
+    [ -s ${JWT} ] || {
+        echo "WARN: skipping empty JWT file in ${JWT}" >&2
+        continue
+    }
     CONFIG="$(echo ${JWT}|sed -E 's|(.*).jwt|\1.json')"
     if @CPACK_BIN_DIR@/@SYSTEMD_SERVICE_NAME@ enroll --jwt ${JWT} --identity ${CONFIG}; then
         mv --force ${JWT} ${JWT}.enrolled
