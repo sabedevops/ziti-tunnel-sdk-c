@@ -4,12 +4,12 @@
 #
 # enroll all identity tokens found in ZITI_IDENTITY_DIR
 
-set -e -u -o pipefail 
+set -eu
 
 for JWT in @ZITI_IDENTITY_DIR@/*.jwt; do
     # handle case where JWT='@ZITI_IDENTITY_DIR@/*.jwt'
     [ -e ${JWT} ] || {
-        echo "WARN: no JWT files in ${JWT}" >&2
+        echo "NOTICE: no new JWT files in ${JWT}" >&2
         continue
     }
     [ -r ${JWT} ] || {
