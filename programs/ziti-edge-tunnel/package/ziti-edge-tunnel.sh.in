@@ -1,4 +1,4 @@
-#!@BOURNE_SHELL_BIN@
+#!/usr/bin/env sh
 #
 # ziti-edge-tunnel.sh
 #
