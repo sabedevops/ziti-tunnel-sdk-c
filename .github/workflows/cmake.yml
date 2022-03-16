@@ -116,7 +116,7 @@ jobs:
 
       - name: configure build action for distro version
         env:
-          DISTRO_LABEL: ${{ format('Dockerfile.{0}:{1}', matrix.distro.name, matrix.distro.version) }}
+          DISTRO_LABEL: ${{ format('{0}:{1}', matrix.distro.name, matrix.distro.version) }}
         run: |
           mv -v ${GITHUB_WORKSPACE}/actions/openziti/openziti-tunnel-build-action/Dockerfile.${DISTRO_LABEL} \
                 ${GITHUB_WORKSPACE}/actions/openziti/openziti-tunnel-build-action/Dockerfile
