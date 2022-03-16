@@ -116,10 +116,12 @@ jobs:
 
       - name: configure build action for distro version
         env:
-          DOCKERFILE: ${{ format('Dockerfile.{0}:{1}', matrix.distro.name, matrix.distro.version) }}
+          DISTRO_LABEL: ${{ format('Dockerfile.{0}:{1}', matrix.distro.name, matrix.distro.version) }}
         run: |
-          mv -v ${GITHUB_WORKSPACE}/actions/openziti/openziti-tunnel-build-action/${DOCKERFILE} \
+          mv -v ${GITHUB_WORKSPACE}/actions/openziti/openziti-tunnel-build-action/Dockerfile.${DISTRO_LABEL} \
                 ${GITHUB_WORKSPACE}/actions/openziti/openziti-tunnel-build-action/Dockerfile
+          mv -v ${GITHUB_WORKSPACE}/actions/openziti/openziti-tunnel-build-action/entrypoint.sh.${DISTRO_LABEL} \
+                ${GITHUB_WORKSPACE}/actions/openziti/openziti-tunnel-build-action/entrypoint.sh
 
       - name: build binary and package
         uses: ./actions/openziti/openziti-tunnel-build-action
