@@ -36,11 +36,11 @@ enum {
 };
 
 #define TNL_LOG(level, fmt, ...) do { \
-if (tunnel_logger && level <= tunnel_log_level) { tunnel_logger(level, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__); }\
+if (tunnel_logger && level <= tunnel_log_level) { tunnel_logger(level, "tunnel-sdk", __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__); }\
 } while(0)
 
 extern int tunnel_log_level;
-typedef void (*tunnel_logger_f)(int level, const char *file, unsigned int line, const char *func, const char *fmt, ...);
+typedef void (*tunnel_logger_f)(int level, const char *module, const char *file, unsigned int line, const char *func, const char *fmt, ...);
 extern tunnel_logger_f tunnel_logger;
 
 struct intercept_ctx_s {
@@ -58,6 +58,8 @@ struct intercept_ctx_s {
     ziti_sdk_close_cb close_fn;
 
     LIST_ENTRY(intercept_ctx_s) entries;
+
+    intercept_match_addr_fn match_addr;
 };
 
 struct excluded_route_s {
@@ -80,7 +82,7 @@ typedef struct tunneler_ctx_s {
 } *tunneler_context;
 
 /** return the intercept context for a packet based on its destination ip:port */
-extern intercept_ctx_t *lookup_intercept_by_address(tunneler_context tnlr_ctx, const char *protocol, ip_addr_t *dst_addr, int dst_port);
+extern intercept_ctx_t *lookup_intercept_by_address(tunneler_context tnlr_ctx, const char *protocol, ip_addr_t *dst_addr, uint16_t dst_port);
 
 typedef enum  {
     tun_tcp,
