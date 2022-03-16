@@ -42,7 +42,7 @@ jobs:
             arch: arm64
 
     steps:
-      - name: checkout working copy to workspace
+      - name: checkout workspace
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
@@ -91,6 +91,7 @@ jobs:
 
   ubuntu-focal:
     runs-on: ubuntu-20.04
+    container: ${{ matrix.distro.name }}:${{ matrix.distro.version }}
     strategy:
       fail-fast: false
       matrix:
@@ -100,29 +101,50 @@ jobs:
             version: "20.04"
             type: deb
     steps:
-      - name: checkout working copy to workspace
+      - name: checkout workspace
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
-      - name: build binary and package for Ubuntu Focal 20.04
-        uses: qrkourier/ubuntu-builder-docker-action@v20.04
-        if: ${{ matrix.distro.name == 'ubuntu' && matrix.distro.version == '20.04' }}
+      - name: checkout build action
+        uses: actions/checkout@v2
+        with:
+          repository: openziti/openziti-tunnel-build-action
+          ref: v${{ matrix.distro.version }} #v1
+          path: actions/openziti/openziti-tunnel-build-action
+
+      - name: configure build action for distro version
+        env:
+          DOCKERFILE: ${{ format('Dockerfile.{0}:{1}', matrix.distro.name, matrix.distro.version) }}
+        run: |
+          mv -v ${GITHUB_WORKSPACE}/actions/openziti/openziti-tunnel-build-action/${DOCKERFILE} \
+                ${GITHUB_WORKSPACE}/actions/openziti/openziti-tunnel-build-action/Dockerfile
+
+      - name: build binary and package
+        uses: actions/openziti/openziti-tunnel-build-action
 
       - name: list build artifacts
-        run: ls -horAS
-        working-directory: ${{ github.workspace }}/build/
+        run: ls -horAS ${GITHUB_WORKSPACE}/build/
 
       - name: list program artifacts
-        run: ls -horAS
-        working-directory: ${{ github.workspace }}/build/programs/ziti-edge-tunnel/
+        run: ls -horAS ${GITHUB_WORKSPACE}/build/programs/ziti-edge-tunnel/
+
+      - name: run binary artifact
+        run: |
+          ${GITHUB_WORKSPACE}/build/programs/ziti-edge-tunnel/ziti-edge-tunnel version
+
+      - name: install package artifact
+        run: |
+          lsb_release --all
+          apt -y install ${GITHUB_WORKSPACE}/build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
+          systemctl cat ziti-edge-tunnel.service
 
       - name: upload ziti-edge-tunnel binary
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-bin
           path: |
-            ${{ github.workspace }}/build/programs/ziti-edge-tunnel/ziti-edge-tunnel
+            ${GITHUB_WORKSPACE}/build/programs/ziti-edge-tunnel/ziti-edge-tunnel
           if-no-files-found: error
 
       - name: upload ziti-edge-tunnel package
@@ -130,7 +152,7 @@ jobs:
         with:
           name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-${{ matrix.distro.type }}
           path: |
-            ${{ github.workspace }}/build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
+            ${GITHUB_WORKSPACE}/build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
           if-no-files-found: error
 
   ubuntu-bionic:
@@ -144,13 +166,13 @@ jobs:
             version: "18.04"
             type: deb
     steps:
-      - name: checkout working copy to workspace
+      - name: checkout workspace
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
       - name: build binary and package for Ubuntu Bionic 18.04
-        uses: qrkourier/ubuntu-builder-docker-action@v18.04
+        uses: openziti/openziti-tunnel-build-action@ubuntu-18.04
         if: ${{ matrix.distro.name == 'ubuntu' && matrix.distro.version == '18.04' }}
 
       - name: list build artifacts
@@ -188,13 +210,13 @@ jobs:
             version: "16.04"
             type: deb
     steps:
-      - name: checkout working copy to workspace
+      - name: checkout workspace
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
       - name: build binary and package for Ubuntu Xenial 16.04
-        uses: qrkourier/ubuntu-builder-docker-action@v16.04
+        uses: openziti/openziti-tunnel-build-action@ubuntu-16.04
         if: ${{ matrix.distro.name == 'ubuntu' && matrix.distro.version == '16.04' }}
 
       - name: list build artifacts
@@ -232,13 +254,13 @@ jobs:
             version: "14.04"
             type: deb
     steps:
-      - name: checkout working copy to workspace
+      - name: checkout workspace
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
       - name: build binary and package for Ubuntu Trusty 14.04
-        uses: qrkourier/ubuntu-builder-docker-action@v14.04
+        uses: openziti/openziti-tunnel-build-action@ubuntu-14.04
         if: ${{ matrix.distro.name == 'ubuntu' && matrix.distro.version == '14.04' }}
 
       - name: list build artifacts
@@ -276,13 +298,13 @@ jobs:
             version: "8"
             type: rpm
     steps:
-      - name: checkout working copy to workspace
+      - name: checkout workspace
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
       - name: build binary and package for RedHat 8
-        uses: qrkourier/redhat-builder-docker-action@v8
+        uses: openziti/openziti-tunnel-build-action@redhat-8
         if: ${{ matrix.distro.name == 'redhat' && matrix.distro.version == '8' }}
 
       - name: list build artifacts
@@ -320,13 +342,13 @@ jobs:
             version: "7"
             type: rpm
     steps:
-      - name: checkout working copy to workspace
+      - name: checkout workspace
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
       - name: build binary and package for RedHat 7
-        uses: qrkourier/redhat-builder-docker-action@v7
+        uses: openziti/openziti-tunnel-build-action@redhat-7
         if: ${{ matrix.distro.name == 'redhat' && matrix.distro.version == '7' }}
 
       - name: list build artifacts
