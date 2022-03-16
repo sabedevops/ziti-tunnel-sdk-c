@@ -83,6 +83,3 @@ install(TARGETS lwipwin32arch
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
         )
 endif()
-
-#set(CPACK_PACKAGE_VENDOR "NetFoundry")
-#include(CPack)

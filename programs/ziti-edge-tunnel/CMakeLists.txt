@@ -56,7 +56,7 @@ install(TARGETS ziti-edge-tunnel
 	COMPONENT ${PROJECT_NAME}
         )
 
-if(CMAKE_SYSTEM_NAME MATCHES "^Linux$")
+if(CMAKE_SYSTEM_NAME STREQUAL Linux)
         include("${CMAKE_CURRENT_SOURCE_DIR}/package/CPackPackage.cmake")
         include(CPack)
 endif()

@@ -1,11 +1,4 @@
-#cpack_add_component(${PROJECT_NAME})
 set(CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_CURRENT_BINARY_DIR};${PROJECT_NAME};${PROJECT_NAME};/")
-
-# -OR -
-#get_cmake_property(CPACK_COMPONENTS_ALL COMPONENTS)
-#list(REMOVE_ITEM CPACK_COMPONENTS_ALL "Unspecified")
-#set(CPACK_COMPONENTS_GROUPING "IGNORE")
-#set(CPACK_RPM_COMPONENT_INSTALL "ON")
 
 # this cmake file included if Linux
 find_program(LSB_RELEASE_EXEC lsb_release)
