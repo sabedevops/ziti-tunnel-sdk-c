@@ -109,7 +109,8 @@ jobs:
       - name: checkout build action
         uses: actions/checkout@v2
         with:
-          repository: openziti/openziti-tunnel-build-action
+#          repository: openziti/openziti-tunnel-build-action
+          repository: qrkourier/openziti-tunnel-build-action
           ref: v${{ matrix.distro.version }} #v1
           path: actions/openziti/openziti-tunnel-build-action
 
