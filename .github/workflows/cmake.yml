@@ -8,56 +8,348 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  # this job:
+  # + is parallel to the Linux packager jobs which build their own binaries
+  # + only builds ziti-edge-tunnel for x86 on MacOS, Windows, and for Linux on arm, arm64
+  # note that the Linux matrices for arm, arm64 may eventually move to a packager job if
+  #   want to also support deb, rpm for arm, arm64
+  bin-builder:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-18.04
-          - macOS-10.15
-        cmake_opts: [ "" ]
-        arch: [ x86_64 ]
-        toolchain: [ default.cmake ]
-
         include:
+          - os: macOS-10.15
+            cmake_opts: null
+            arch: x86_64
+            toolchain: default.cmake
+
           - os: windows-latest
             cmake_opts: -G "MinGW Makefiles" -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}\install
             toolchain: default.cmake
-            arch: [ x86_64 ]
+            arch: x86_64
 
           - os: ubuntu-18.04
-            install: crossbuild-essential-armhf
+            crossbuild: crossbuild-essential-armhf
             toolchain: Linux-arm.cmake
             cmake_opts: -DCMAKE_BUILD_TYPE=Release
             arch: arm
 
           - os: ubuntu-18.04
-            install: crossbuild-essential-arm64
+            crossbuild: crossbuild-essential-arm64
             toolchain: Linux-arm64.cmake
             cmake_opts: -DCMAKE_BUILD_TYPE=Release
             arch: arm64
 
     steps:
-      - uses: actions/checkout@v2
+      - name: checkout working copy to workspace
+        uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
       - name: make build dir
-        run: cmake -E make_directory ${{runner.workspace}}/build
+        run: cmake -E make_directory ${{github.workspace}}/build
 
-      - name: install toolchain
-        if: matrix.install != ''
+      - name: install Debian crossbuild toolchain
+        if: ${{ matrix.crossbuild != null }}
         run: |
-          sudo apt update
-          sudo apt install ${{ matrix.install }}
-
+          sudo apt -y update
+          sudo apt -y install ${{ matrix.crossbuild }}
 
       - name: configure cmake
-        run: cmake ${{matrix.cmake_opts}} -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchains/${{matrix.toolchain}} -S ${{ github.workspace }} -B ${{runner.workspace}}/build
-      - name: build
-        run: cmake --build ${{runner.workspace}}/build --target bundle --verbose
+        run: cmake ${{matrix.cmake_opts}} -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchains/${{matrix.toolchain}} -S ${{ github.workspace }} -B ${{github.workspace}}/build
 
-      - uses: actions/upload-artifact@v2
+      - name: build ziti-edge-tunnel bundle target
+        # yields two files with names computed by cmake like:
+        # 1) ./build/bundle/ziti-edge-tunnel-OS_ARCH.zip
+        # 2) ./build/bundle/ziti-edge-tunnel-test-OS_ARCH.zip
+        # where:
+        # - OS: Windows
+        #   ARCH: AMD64
+        # - OS: Darwin
+        #   ARCH: x86_64
+        # - OS: Linux
+        #   ARCH: arm
+        # - OS: Linux
+        #   ARCH: aarch64
+        run: cmake --build ${{github.workspace}}/build --target bundle --verbose
+
+      - name: list bundle artifacts
+        run: ls -R
+        working-directory: ${{ github.workspace }}/build/bundle/
+
+      - name: upload bundle artifacts
+        uses: actions/upload-artifact@v3
         with:
-          name: ${{ runner.os }}-${{ matrix.arch }}
-          path: ${{ runner.workspace }}/build/bundle/*.zip
+          # puts one object with a key based on the workflow context properties
+          # shown in "name" in a zip archive containing two zip artifacts from
+          # the bundle target
+          name: ${{ runner.os }}-${{ matrix.arch }}-zip
+          path: |
+            ${{ github.workspace }}/build/bundle/ziti-edge-tunnel-*.zip
+          if-no-files-found: error
+
+  ubuntu-focal:
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [ x86_64 ] # TODO: migrate the Linux builds for arm, arm64 too
+        distro:
+          - name: ubuntu
+            version: "20.04"
+            type: deb
+    steps:
+      - name: checkout working copy to workspace
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: build binary and package for Ubuntu Focal 20.04
+        uses: qrkourier/ubuntu-builder-docker-action@v20.04
+        if: ${{ matrix.distro.name == 'ubuntu' && matrix.distro.version == '20.04' }}
+
+      - name: list build artifacts
+        run: ls -horAS
+        working-directory: ${{ github.workspace }}/build/
+
+      - name: list program artifacts
+        run: ls -horAS
+        working-directory: ${{ github.workspace }}/build/programs/ziti-edge-tunnel/
+
+      - name: upload ziti-edge-tunnel binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-bin
+          path: |
+            ${{ github.workspace }}/build/programs/ziti-edge-tunnel/ziti-edge-tunnel
+          if-no-files-found: error
+
+      - name: upload ziti-edge-tunnel package
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-${{ matrix.distro.type }}
+          path: |
+            ${{ github.workspace }}/build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
+          if-no-files-found: error
+
+  ubuntu-bionic:
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [ x86_64 ] # TODO: migrate the Linux builds for arm, arm64 too
+        distro:
+          - name: ubuntu
+            version: "18.04"
+            type: deb
+    steps:
+      - name: checkout working copy to workspace
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: build binary and package for Ubuntu Bionic 18.04
+        uses: qrkourier/ubuntu-builder-docker-action@v18.04
+        if: ${{ matrix.distro.name == 'ubuntu' && matrix.distro.version == '18.04' }}
+
+      - name: list build artifacts
+        run: ls -horAS
+        working-directory: ${{ github.workspace }}/build/
+
+      - name: list program artifacts
+        run: ls -horAS
+        working-directory: ${{ github.workspace }}/build/programs/ziti-edge-tunnel/
+
+      - name: upload ziti-edge-tunnel binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-bin
+          path: |
+            ${{ github.workspace }}/build/programs/ziti-edge-tunnel/ziti-edge-tunnel
+          if-no-files-found: error
+
+      - name: upload ziti-edge-tunnel package
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-${{ matrix.distro.type }}
+          path: |
+            ${{ github.workspace }}/build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
+          if-no-files-found: error
+
+  ubuntu-xenial:
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [ x86_64 ] # TODO: migrate the Linux builds for arm, arm64 too
+        distro:
+          - name: ubuntu
+            version: "16.04"
+            type: deb
+    steps:
+      - name: checkout working copy to workspace
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: build binary and package for Ubuntu Xenial 16.04
+        uses: qrkourier/ubuntu-builder-docker-action@v16.04
+        if: ${{ matrix.distro.name == 'ubuntu' && matrix.distro.version == '16.04' }}
+
+      - name: list build artifacts
+        run: ls -horAS
+        working-directory: ${{ github.workspace }}/build/
+
+      - name: list program artifacts
+        run: ls -horAS
+        working-directory: ${{ github.workspace }}/build/programs/ziti-edge-tunnel/
+
+      - name: upload ziti-edge-tunnel binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-bin
+          path: |
+            ${{ github.workspace }}/build/programs/ziti-edge-tunnel/ziti-edge-tunnel
+          if-no-files-found: error
+
+      - name: upload ziti-edge-tunnel package
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-${{ matrix.distro.type }}
+          path: |
+            ${{ github.workspace }}/build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
+          if-no-files-found: error
+
+  ubuntu-trusty:
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [ x86_64 ] # TODO: migrate the Linux builds for arm, arm64 too
+        distro:
+          - name: ubuntu
+            version: "14.04"
+            type: deb
+    steps:
+      - name: checkout working copy to workspace
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: build binary and package for Ubuntu Trusty 14.04
+        uses: qrkourier/ubuntu-builder-docker-action@v14.04
+        if: ${{ matrix.distro.name == 'ubuntu' && matrix.distro.version == '14.04' }}
+
+      - name: list build artifacts
+        run: ls -horAS
+        working-directory: ${{ github.workspace }}/build/
+
+      - name: list program artifacts
+        run: ls -horAS
+        working-directory: ${{ github.workspace }}/build/programs/ziti-edge-tunnel/
+
+      - name: upload ziti-edge-tunnel binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-bin
+          path: |
+            ${{ github.workspace }}/build/programs/ziti-edge-tunnel/ziti-edge-tunnel
+          if-no-files-found: error
+
+      - name: upload ziti-edge-tunnel package
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-${{ matrix.distro.type }}
+          path: |
+            ${{ github.workspace }}/build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
+          if-no-files-found: error
+
+  redhat-8:
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [ x86_64 ] # TODO: migrate the Linux builds for arm, arm64 too
+        distro:
+          - name: redhat
+            version: "8"
+            type: rpm
+    steps:
+      - name: checkout working copy to workspace
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: build binary and package for RedHat 8
+        uses: qrkourier/redhat-builder-docker-action@v8
+        if: ${{ matrix.distro.name == 'redhat' && matrix.distro.version == '8' }}
+
+      - name: list build artifacts
+        run: ls -horAS
+        working-directory: ${{ github.workspace }}/build/
+
+      - name: list program artifacts
+        run: ls -horAS
+        working-directory: ${{ github.workspace }}/build/programs/ziti-edge-tunnel/
+
+      - name: upload ziti-edge-tunnel binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-bin
+          path: |
+            ${{ github.workspace }}/build/programs/ziti-edge-tunnel/ziti-edge-tunnel
+          if-no-files-found: error
+
+      - name: upload ziti-edge-tunnel package
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-${{ matrix.distro.type }}
+          path: |
+            ${{ github.workspace }}/build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
+          if-no-files-found: error
+
+  redhat-7:
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [ x86_64 ] # TODO: migrate the Linux builds for arm, arm64 too
+        distro:
+          - name: redhat
+            version: "7"
+            type: rpm
+    steps:
+      - name: checkout working copy to workspace
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: build binary and package for RedHat 7
+        uses: qrkourier/redhat-builder-docker-action@v7
+        if: ${{ matrix.distro.name == 'redhat' && matrix.distro.version == '7' }}
+
+      - name: list build artifacts
+        run: ls -horAS
+        working-directory: ${{ github.workspace }}/build/
+
+      - name: list program artifacts
+        run: ls -horAS
+        working-directory: ${{ github.workspace }}/build/programs/ziti-edge-tunnel/
+
+      - name: upload ziti-edge-tunnel binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-bin
+          path: |
+            ${{ github.workspace }}/build/programs/ziti-edge-tunnel/ziti-edge-tunnel
+          if-no-files-found: error
+
+      - name: upload ziti-edge-tunnel package
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-${{ matrix.distro.type }}
+          path: |
+            ${{ github.workspace }}/build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
+          if-no-files-found: error
+
