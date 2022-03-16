@@ -91,7 +91,7 @@ jobs:
 
   package:
     runs-on: ubuntu-20.04
-    container: ${{ matrix.distro.container }}
+    container: ${{ matrix.distro.container }} || ${{ matrix.distro.name }}:${{ matrix.distro.version }}
     strategy:
       fail-fast: false
       matrix:
@@ -100,7 +100,6 @@ jobs:
           - name: ubuntu
             version: "20.04"
             type: deb
-            container: ${{ matrix.distro.name }}:${{ matrix.distro.version }}
           - name: ubuntu
             version: "18.04"
             type: deb
