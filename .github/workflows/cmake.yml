@@ -121,7 +121,7 @@ jobs:
                 ${GITHUB_WORKSPACE}/actions/openziti/openziti-tunnel-build-action/Dockerfile
 
       - name: build binary and package
-        uses: actions/openziti/openziti-tunnel-build-action
+        uses: ./actions/openziti/openziti-tunnel-build-action
 
       - name: list build artifacts
         run: ls -horAS ${GITHUB_WORKSPACE}/build/
