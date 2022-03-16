@@ -89,7 +89,7 @@ jobs:
             ${{ github.workspace }}/build/bundle/ziti-edge-tunnel-*.zip
           if-no-files-found: error
 
-  ubuntu-focal:
+  package:
     runs-on: ubuntu-20.04
     container: ${{ matrix.distro.name }}:${{ matrix.distro.version }}
     strategy:
@@ -98,8 +98,17 @@ jobs:
         arch: [ x86_64 ] # TODO: migrate the Linux builds for arm, arm64 too
         distro:
           - name: ubuntu
-            version: "20.04"
+            version:
+              - "20.04"
+              - "18.04"
+              - "16.04"
+              - "14.04"
             type: deb
+          - name: redhat
+            version:
+              - "7"
+              - "8"
+            type: rpm
     steps:
       - name: checkout workspace
         uses: actions/checkout@v2
@@ -111,7 +120,7 @@ jobs:
         with:
 #          repository: openziti/openziti-tunnel-build-action
           repository: qrkourier/openziti-tunnel-build-action
-          ref: v${{ matrix.distro.version }} #v1
+          ref: v0.1.0
           path: actions/openziti/openziti-tunnel-build-action
 
       - name: configure build action for distro version
@@ -128,17 +137,23 @@ jobs:
         uses: ./actions/openziti/openziti-tunnel-build-action
 
       - name: list build artifacts
-        run: ls -horAS ${GITHUB_WORKSPACE}/build/
+        run: |
+          cat /etc/*-release
+          ls -horAS ${GITHUB_WORKSPACE}/build/
 
       - name: list program artifacts
-        run: ls -horAS ${GITHUB_WORKSPACE}/build/programs/ziti-edge-tunnel/
+        run: |
+          cat /etc/*-release
+          ls -horAS ${GITHUB_WORKSPACE}/build/programs/ziti-edge-tunnel/
 
       - name: run binary artifact
         run: |
+          cat /etc/*-release
           ${GITHUB_WORKSPACE}/build/programs/ziti-edge-tunnel/ziti-edge-tunnel version
 
       - name: install package artifact
         run: |
+          cat /etc/*-release
           apt -y install ${GITHUB_WORKSPACE}/build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
           systemctl cat ziti-edge-tunnel.service
 
@@ -157,224 +172,3 @@ jobs:
           path: |
             ${GITHUB_WORKSPACE}/build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
           if-no-files-found: error
-
-  ubuntu-bionic:
-    runs-on: ubuntu-20.04
-    strategy:
-      fail-fast: false
-      matrix:
-        arch: [ x86_64 ] # TODO: migrate the Linux builds for arm, arm64 too
-        distro:
-          - name: ubuntu
-            version: "18.04"
-            type: deb
-    steps:
-      - name: checkout workspace
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: build binary and package for Ubuntu Bionic 18.04
-        uses: openziti/openziti-tunnel-build-action@ubuntu-18.04
-        if: ${{ matrix.distro.name == 'ubuntu' && matrix.distro.version == '18.04' }}
-
-      - name: list build artifacts
-        run: ls -horAS
-        working-directory: ${{ github.workspace }}/build/
-
-      - name: list program artifacts
-        run: ls -horAS
-        working-directory: ${{ github.workspace }}/build/programs/ziti-edge-tunnel/
-
-      - name: upload ziti-edge-tunnel binary
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-bin
-          path: |
-            ${{ github.workspace }}/build/programs/ziti-edge-tunnel/ziti-edge-tunnel
-          if-no-files-found: error
-
-      - name: upload ziti-edge-tunnel package
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-${{ matrix.distro.type }}
-          path: |
-            ${{ github.workspace }}/build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
-          if-no-files-found: error
-
-  ubuntu-xenial:
-    runs-on: ubuntu-20.04
-    strategy:
-      fail-fast: false
-      matrix:
-        arch: [ x86_64 ] # TODO: migrate the Linux builds for arm, arm64 too
-        distro:
-          - name: ubuntu
-            version: "16.04"
-            type: deb
-    steps:
-      - name: checkout workspace
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: build binary and package for Ubuntu Xenial 16.04
-        uses: openziti/openziti-tunnel-build-action@ubuntu-16.04
-        if: ${{ matrix.distro.name == 'ubuntu' && matrix.distro.version == '16.04' }}
-
-      - name: list build artifacts
-        run: ls -horAS
-        working-directory: ${{ github.workspace }}/build/
-
-      - name: list program artifacts
-        run: ls -horAS
-        working-directory: ${{ github.workspace }}/build/programs/ziti-edge-tunnel/
-
-      - name: upload ziti-edge-tunnel binary
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-bin
-          path: |
-            ${{ github.workspace }}/build/programs/ziti-edge-tunnel/ziti-edge-tunnel
-          if-no-files-found: error
-
-      - name: upload ziti-edge-tunnel package
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-${{ matrix.distro.type }}
-          path: |
-            ${{ github.workspace }}/build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
-          if-no-files-found: error
-
-  ubuntu-trusty:
-    runs-on: ubuntu-20.04
-    strategy:
-      fail-fast: false
-      matrix:
-        arch: [ x86_64 ] # TODO: migrate the Linux builds for arm, arm64 too
-        distro:
-          - name: ubuntu
-            version: "14.04"
-            type: deb
-    steps:
-      - name: checkout workspace
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: build binary and package for Ubuntu Trusty 14.04
-        uses: openziti/openziti-tunnel-build-action@ubuntu-14.04
-        if: ${{ matrix.distro.name == 'ubuntu' && matrix.distro.version == '14.04' }}
-
-      - name: list build artifacts
-        run: ls -horAS
-        working-directory: ${{ github.workspace }}/build/
-
-      - name: list program artifacts
-        run: ls -horAS
-        working-directory: ${{ github.workspace }}/build/programs/ziti-edge-tunnel/
-
-      - name: upload ziti-edge-tunnel binary
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-bin
-          path: |
-            ${{ github.workspace }}/build/programs/ziti-edge-tunnel/ziti-edge-tunnel
-          if-no-files-found: error
-
-      - name: upload ziti-edge-tunnel package
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-${{ matrix.distro.type }}
-          path: |
-            ${{ github.workspace }}/build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
-          if-no-files-found: error
-
-  redhat-8:
-    runs-on: ubuntu-20.04
-    strategy:
-      fail-fast: false
-      matrix:
-        arch: [ x86_64 ] # TODO: migrate the Linux builds for arm, arm64 too
-        distro:
-          - name: redhat
-            version: "8"
-            type: rpm
-    steps:
-      - name: checkout workspace
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: build binary and package for RedHat 8
-        uses: openziti/openziti-tunnel-build-action@redhat-8
-        if: ${{ matrix.distro.name == 'redhat' && matrix.distro.version == '8' }}
-
-      - name: list build artifacts
-        run: ls -horAS
-        working-directory: ${{ github.workspace }}/build/
-
-      - name: list program artifacts
-        run: ls -horAS
-        working-directory: ${{ github.workspace }}/build/programs/ziti-edge-tunnel/
-
-      - name: upload ziti-edge-tunnel binary
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-bin
-          path: |
-            ${{ github.workspace }}/build/programs/ziti-edge-tunnel/ziti-edge-tunnel
-          if-no-files-found: error
-
-      - name: upload ziti-edge-tunnel package
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-${{ matrix.distro.type }}
-          path: |
-            ${{ github.workspace }}/build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
-          if-no-files-found: error
-
-  redhat-7:
-    runs-on: ubuntu-20.04
-    strategy:
-      fail-fast: false
-      matrix:
-        arch: [ x86_64 ] # TODO: migrate the Linux builds for arm, arm64 too
-        distro:
-          - name: redhat
-            version: "7"
-            type: rpm
-    steps:
-      - name: checkout workspace
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: build binary and package for RedHat 7
-        uses: openziti/openziti-tunnel-build-action@redhat-7
-        if: ${{ matrix.distro.name == 'redhat' && matrix.distro.version == '7' }}
-
-      - name: list build artifacts
-        run: ls -horAS
-        working-directory: ${{ github.workspace }}/build/
-
-      - name: list program artifacts
-        run: ls -horAS
-        working-directory: ${{ github.workspace }}/build/programs/ziti-edge-tunnel/
-
-      - name: upload ziti-edge-tunnel binary
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-bin
-          path: |
-            ${{ github.workspace }}/build/programs/ziti-edge-tunnel/ziti-edge-tunnel
-          if-no-files-found: error
-
-      - name: upload ziti-edge-tunnel package
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-${{ matrix.distro.type }}
-          path: |
-            ${{ github.workspace }}/build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
-          if-no-files-found: error
-
