@@ -9,7 +9,7 @@ on:
 
 jobs:
   # this job:
-  # + is parallel to the Linux packager jobs which build their own binaries
+  # + is parallel to the Linux packager job which builds its own binaries,
   # + only builds ziti-edge-tunnel for x86 on MacOS, Windows, and for Linux on arm, arm64
   # note that the Linux matrices for arm, arm64 may eventually move to a packager job if
   #   want to also support deb, rpm for arm, arm64
@@ -112,9 +112,11 @@ jobs:
           - name: redhat
             version: "7"
             type: rpm
+            container: quay.io/centos/centos:7
           - name: redhat
             verwsion: "8"
             type: rpm
+            container: quay.io/rockylinux/rockylinux:8
     steps:
       - name: checkout workspace
         uses: actions/checkout@v2
@@ -156,12 +158,6 @@ jobs:
         run: |
           cat /etc/*-release
           ${GITHUB_WORKSPACE}/build/programs/ziti-edge-tunnel/ziti-edge-tunnel version
-
-      - name: install package artifact
-        run: |
-          cat /etc/*-release
-          apt -y install ${GITHUB_WORKSPACE}/build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
-          systemctl cat ziti-edge-tunnel.service
 
       - name: upload ziti-edge-tunnel binary
         uses: actions/upload-artifact@v3
