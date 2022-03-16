@@ -91,7 +91,7 @@ jobs:
 
   package:
     runs-on: ubuntu-20.04
-    container: ${{ matrix.distro.container || join([matrix.distro.name, matrix.distro.version], ':') }}
+    container: ${{ matrix.distro.container || join((matrix.distro.name, matrix.distro.version), ':') }}
     strategy:
       fail-fast: false
       matrix:
