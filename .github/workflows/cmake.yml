@@ -98,16 +98,22 @@ jobs:
         arch: [ x86_64 ] # TODO: migrate the Linux builds for arm, arm64 too
         distro:
           - name: ubuntu
-            version:
-              - "20.04"
-              - "18.04"
-              - "16.04"
-              - "14.04"
+            version: "20.04"
+            type: deb
+          - name: ubuntu
+            version: "18.04"
+            type: deb
+          - name: ubuntu
+            version: "16.04"
+            type: deb
+          - name: ubuntu
+            version: "14.04"
             type: deb
           - name: redhat
-            version:
-              - "7"
-              - "8"
+            version: "7"
+            type: rpm
+          - name: redhat
+            verwsion: "8"
             type: rpm
     steps:
       - name: checkout workspace
