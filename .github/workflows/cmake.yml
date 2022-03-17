@@ -13,7 +13,7 @@ jobs:
   # + only builds ziti-edge-tunnel for x86 on MacOS, Windows, and for Linux on arm, arm64
   # note that the Linux matrices for arm, arm64 may eventually move to a packager job if
   #   want to also support deb, rpm for arm, arm64
-  bin-builder:
+  build:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -25,7 +25,7 @@ jobs:
             toolchain: default.cmake
 
           - os: windows-latest
-            cmake_opts: -G "MinGW Makefiles" -DCMAKE_INSTALL_PREFIX=.\install
+            cmake_opts: -G "MinGW Makefiles" -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}\install
             toolchain: default.cmake
             arch: x86_64
 
@@ -48,7 +48,7 @@ jobs:
           fetch-depth: 0
 
       - name: make build dir
-        run: cmake -E make_directory ./build
+        run: cmake -E make_directory ${{runner.workspace}}/build
 
       - name: install Debian crossbuild toolchain
         if: ${{ matrix.install != null }}
@@ -56,10 +56,6 @@ jobs:
           sudo apt -y update
           sudo apt -y install ${{ matrix.install }}
 
-      - name: configure cmake
-        run: cmake ${{matrix.cmake_opts}} -DCMAKE_TOOLCHAIN_FILE=./toolchains/${{matrix.toolchain}} -S ${{ github.workspace }} -B ./build
-
-      - name: build ziti-edge-tunnel bundle target
         # yields two files with names computed by cmake like:
         # 1) ./build/bundle/ziti-edge-tunnel-OS_ARCH.zip
         # 2) ./build/bundle/ziti-edge-tunnel-test-OS_ARCH.zip
@@ -72,7 +68,10 @@ jobs:
         #   ARCH: arm
         # - OS: Linux
         #   ARCH: aarch64
-        run: cmake --build ./build --target bundle --verbose
+      - name: configure cmake
+        run: cmake ${{matrix.cmake_opts}} -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchains/${{matrix.toolchain}} -S ${{ github.workspace }} -B ${{runner.workspace}}/build
+      - name: build ziti-edge-tunnel bundle target
+        run: cmake --build ${{runner.workspace}}/build --target bundle --verbose
 
       - name: list bundle artifacts
         run: ls -R
