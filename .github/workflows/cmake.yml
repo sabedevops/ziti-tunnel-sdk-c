@@ -56,6 +56,9 @@ jobs:
           sudo apt -y update
           sudo apt -y install ${{ matrix.install }}
 
+      - name: configure cmake
+        run: cmake ${{matrix.cmake_opts}} -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchains/${{matrix.toolchain}} -S ${{ github.workspace }} -B ${{github.workspace}}/build
+
         # yields two files with names computed by cmake like:
         # 1) ./build/bundle/ziti-edge-tunnel-OS_ARCH.zip
         # 2) ./build/bundle/ziti-edge-tunnel-test-OS_ARCH.zip
@@ -68,10 +71,8 @@ jobs:
         #   ARCH: arm
         # - OS: Linux
         #   ARCH: aarch64
-      - name: configure cmake
-        run: cmake ${{matrix.cmake_opts}} -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchains/${{matrix.toolchain}} -S ${{ github.workspace }} -B ${{runner.workspace}}/build
       - name: build ziti-edge-tunnel bundle target
-        run: cmake --build ${{runner.workspace}}/build --target bundle --verbose
+        run: cmake --build ${{github.workspace}}/build --target bundle --verbose
 
       - name: list bundle artifacts
         run: ls -R
