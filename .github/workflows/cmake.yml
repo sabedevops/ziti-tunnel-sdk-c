@@ -155,6 +155,7 @@ jobs:
           ls -horAS ./build/programs/ziti-edge-tunnel/
 
       - name: run binary artifact
+        if: ${{ matrix.distro.name != 'redhat' }} # TODO: error while loading shared libraries: libatomic.so.1
         run: |
           cat /etc/*-release
           ./build/programs/ziti-edge-tunnel/ziti-edge-tunnel version
