@@ -18,7 +18,7 @@ string(REGEX MATCH "([0-9]+\\.[0-9]+\\.[0-9]+)" ver "${GIT_VERSION}")
 project(ziti-tunnel-sdk-c
         VERSION "${ver}"
         LANGUAGES C CXX)
-include(CPack)
+#include(CPack)
 set(CPACK_PACKAGE_VENDOR "NetFoundry")
 set(CMAKE_C_STANDARD 99)
 
