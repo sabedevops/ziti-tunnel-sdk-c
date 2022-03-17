@@ -91,7 +91,7 @@ jobs:
 
   package:
     runs-on: ubuntu-20.04
-    container: ${{ matrix.distro.container || matrix.distro.name':'matrix.distro.version }}
+    container: ${{ matrix.distro.container || matrix.distro.name }}:${{ matrix.distro.version }}
     strategy:
       fail-fast: false
       matrix:
@@ -112,11 +112,11 @@ jobs:
           - name: redhat
             version: "7"
             type: rpm
-            container: quay.io/centos/centos:7
+            container: quay.io/centos/centos
           - name: redhat
-            verwsion: "8"
+            version: "8"
             type: rpm
-            container: quay.io/rockylinux/rockylinux:8
+            container: quay.io/rockylinux/rockylinux
     steps:
       - name: checkout workspace
         uses: actions/checkout@v2
