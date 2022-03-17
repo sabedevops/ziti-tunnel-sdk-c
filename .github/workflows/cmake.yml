@@ -90,7 +90,10 @@ jobs:
 
   package:
     runs-on: ubuntu-20.04
-    container: ${{ matrix.distro.container || matrix.distro.name }}:${{ matrix.distro.version }}
+    # optionally override entire container image:tag string
+    container: ${{ matrix.distro.container || format('{0}:{1}', matrix.distro.name, matrix.distro.version) }} 
+    # only override container image name and tag is distro version
+    #container: ${{ matrix.distro.container || matrix.distro.name }}:${{ matrix.distro.version }}
     strategy:
       fail-fast: false
       matrix:
@@ -111,11 +114,11 @@ jobs:
           - name: redhat
             version: "7"
             type: rpm
-            container: quay.io/centos/centos
+            container: quay.io/centos/centos:7
           - name: redhat
             version: "8"
             type: rpm
-            container: quay.io/rockylinux/rockylinux
+            container: quay.io/rockylinux/rockylinux:8
     steps:
       - name: checkout workspace
         uses: actions/checkout@v2
@@ -125,9 +128,8 @@ jobs:
       - name: checkout build action
         uses: actions/checkout@v2
         with:
-#          repository: openziti/openziti-tunnel-build-action
-          repository: qrkourier/openziti-tunnel-build-action
-          ref: v0.1.0
+          repository: openziti/openziti-tunnel-build-action
+          ref: v1 # this can be a matrix or context value if needed
           path: actions/openziti/openziti-tunnel-build-action
 
       - name: configure build action for distro version
