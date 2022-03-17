@@ -18,8 +18,7 @@ string(REGEX MATCH "([0-9]+\\.[0-9]+\\.[0-9]+)" ver "${GIT_VERSION}")
 project(ziti-tunnel-sdk-c
         VERSION "${ver}"
         LANGUAGES C CXX)
-#include(CPack)
-set(CPACK_PACKAGE_VENDOR "NetFoundry")
+
 set(CMAKE_C_STANDARD 99)
 
 if (MSVC)
@@ -75,8 +74,6 @@ target_compile_definitions(lwipcore
     PUBLIC MEMP_NUM_TCP_SEG=${TCP_MAX_QUEUED_SEGMENTS}
     PUBLIC MEMP_NUM_UDP_PCB=${UDP_MAX_CONNECTIONS}
 )
-
-
 
 if (WIN32)
 install(TARGETS lwipwin32arch

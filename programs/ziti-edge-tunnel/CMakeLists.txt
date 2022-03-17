@@ -53,7 +53,7 @@ BUNDLE_COMP(ziti-edge-tunnel)
 
 install(TARGETS ziti-edge-tunnel
         DESTINATION ${CMAKE_INSTALL_BINDIR}
-	COMPONENT ${PROJECT_NAME}
+        COMPONENT ${PROJECT_NAME}
         )
 
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)
