@@ -25,18 +25,18 @@ jobs:
             toolchain: default.cmake
 
           - os: windows-latest
-            cmake_opts: -G "MinGW Makefiles" -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}\install
+            cmake_opts: -G "MinGW Makefiles" -DCMAKE_INSTALL_PREFIX=.\install
             toolchain: default.cmake
             arch: x86_64
 
           - os: ubuntu-18.04
-            crossbuild: crossbuild-essential-armhf
+            install: crossbuild-essential-armhf
             toolchain: Linux-arm.cmake
             cmake_opts: -DCMAKE_BUILD_TYPE=Release
             arch: arm
 
           - os: ubuntu-18.04
-            crossbuild: crossbuild-essential-arm64
+            install: crossbuild-essential-arm64
             toolchain: Linux-arm64.cmake
             cmake_opts: -DCMAKE_BUILD_TYPE=Release
             arch: arm64
@@ -48,16 +48,16 @@ jobs:
           fetch-depth: 0
 
       - name: make build dir
-        run: cmake -E make_directory ${{github.workspace}}/build
+        run: cmake -E make_directory ./build
 
       - name: install Debian crossbuild toolchain
-        if: ${{ matrix.crossbuild != null }}
+        if: ${{ matrix.install != null }}
         run: |
           sudo apt -y update
-          sudo apt -y install ${{ matrix.crossbuild }}
+          sudo apt -y install ${{ matrix.install }}
 
       - name: configure cmake
-        run: cmake ${{matrix.cmake_opts}} -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchains/${{matrix.toolchain}} -S ${{ github.workspace }} -B ${{github.workspace}}/build
+        run: cmake ${{matrix.cmake_opts}} -DCMAKE_TOOLCHAIN_FILE=./toolchains/${{matrix.toolchain}} -S ${{ github.workspace }} -B ./build
 
       - name: build ziti-edge-tunnel bundle target
         # yields two files with names computed by cmake like:
@@ -72,11 +72,11 @@ jobs:
         #   ARCH: arm
         # - OS: Linux
         #   ARCH: aarch64
-        run: cmake --build ${{github.workspace}}/build --target bundle --verbose
+        run: cmake --build ./build --target bundle --verbose
 
       - name: list bundle artifacts
         run: ls -R
-        working-directory: ${{ github.workspace }}/build/bundle/
+        working-directory: ./build/bundle/
 
       - name: upload bundle artifacts
         uses: actions/upload-artifact@v3
@@ -86,7 +86,7 @@ jobs:
           # the bundle target
           name: ${{ runner.os }}-${{ matrix.arch }}-zip
           path: |
-            ${{ github.workspace }}/build/bundle/ziti-edge-tunnel-*.zip
+            ./build/bundle/ziti-edge-tunnel-*.zip
           if-no-files-found: error
 
   package:
@@ -165,7 +165,7 @@ jobs:
         with:
           name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-bin
           path: |
-            ${{github.workspace}}/build/programs/ziti-edge-tunnel/ziti-edge-tunnel
+            ./build/programs/ziti-edge-tunnel/ziti-edge-tunnel
           if-no-files-found: error
 
       - name: upload ziti-edge-tunnel package
@@ -173,5 +173,5 @@ jobs:
         with:
           name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-${{ matrix.distro.type }}
           path: |
-            ${{github.workspace}}/build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
+            ./build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
           if-no-files-found: error
