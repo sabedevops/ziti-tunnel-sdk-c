@@ -74,10 +74,12 @@ jobs:
         run: cmake --build ${{runner.workspace}}/build --target bundle --verbose
 
       - name: list bundle artifacts
-        run: ls -R ./build/bundle/
+        run: ls -R
+        working-directory: ${{ github.workspace }}/build/bundle/
 
       - name: list program artifacts
-        run: ls -R ./build/programs/ziti-edge-tunnel/
+        run: ls -R
+        working-directory: ${{ github.workspace }}/build/programs/ziti-edge-tunnel/
 
       - name: upload bundle artifacts
         uses: actions/upload-artifact@v3
