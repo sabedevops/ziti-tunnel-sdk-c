@@ -137,8 +137,8 @@ jobs:
         shell: bash
         run: |
           for FILE in Dockerfile entrypoint.sh; do
-            mv -v ${GITHUB_WORKSPACE}/actions/openziti/openziti-tunnel-build-action/${FILE}.${DISTRO_LABEL} \
-                ${GITHUB_WORKSPACE}/actions/openziti/openziti-tunnel-build-action/${FILE}
+            mv -v ./actions/openziti/openziti-tunnel-build-action/${FILE}.${DISTRO_LABEL} \
+                ./actions/openziti/openziti-tunnel-build-action/${FILE}
           done
 
       - name: build binary and package
@@ -147,24 +147,24 @@ jobs:
       - name: list build artifacts
         run: |
           cat /etc/*-release
-          ls -horAS ${GITHUB_WORKSPACE}/build/
+          ls -horAS ./build/
 
       - name: list program artifacts
         run: |
           cat /etc/*-release
-          ls -horAS ${GITHUB_WORKSPACE}/build/programs/ziti-edge-tunnel/
+          ls -horAS ./build/programs/ziti-edge-tunnel/
 
       - name: run binary artifact
         run: |
           cat /etc/*-release
-          ${GITHUB_WORKSPACE}/build/programs/ziti-edge-tunnel/ziti-edge-tunnel version
+          ./build/programs/ziti-edge-tunnel/ziti-edge-tunnel version
 
       - name: upload ziti-edge-tunnel binary
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-bin
           path: |
-            ${GITHUB_WORKSPACE}/build/programs/ziti-edge-tunnel/ziti-edge-tunnel
+            ${{github.workspace}}/build/programs/ziti-edge-tunnel/ziti-edge-tunnel
           if-no-files-found: error
 
       - name: upload ziti-edge-tunnel package
@@ -172,5 +172,5 @@ jobs:
         with:
           name: ${{ matrix.distro.name }}-${{ matrix.distro.version }}-${{ matrix.arch }}-${{ matrix.distro.type }}
           path: |
-            ${GITHUB_WORKSPACE}/build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
+            ${{github.workspace}}/build/ziti-edge-tunnel-*.${{ matrix.distro.type }}
           if-no-files-found: error
