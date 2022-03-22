@@ -5,7 +5,6 @@ BEGIN {
         exit 1
     }
     key=ARGV[1]
-    key_found = 1
     ARGV[1] = ""
     FS = "="
     OS_RELEASE="/etc/os-release"
@@ -13,7 +12,6 @@ BEGIN {
     while((getline < OS_RELEASE) > 0) {
         if (substr($1, 0, 1) != "#") {
             if(tolower(key) == tolower($1)) {
-                key_found = 0
                 value = tolower($2)
                 gsub(/"/,"",value)
                 print value
