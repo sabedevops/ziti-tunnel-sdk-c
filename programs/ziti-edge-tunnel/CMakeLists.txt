@@ -56,7 +56,9 @@ install(TARGETS ziti-edge-tunnel
         COMPONENT ${PROJECT_NAME}
         )
 
-if(CMAKE_SYSTEM_NAME STREQUAL Linux)
+option(BUILD_DIST_PACKAGES "Build packages for distribution package managers" OFF)
+if(CMAKE_SYSTEM_NAME STREQUAL Linux AND BUILD_DIST_PACKAGES)
         include("${CMAKE_CURRENT_SOURCE_DIR}/package/CPackPackage.cmake")
         include(CPack)
+        unset(BUILD_DIST_PACKAGES CACHE)
 endif()
