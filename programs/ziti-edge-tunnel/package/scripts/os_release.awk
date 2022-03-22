@@ -1,4 +1,4 @@
-#!/usr/bin/gawk -f
+#!/usr/bin/awk -f
 BEGIN {
     if(ARGC != 2) {
         print "ERROR: Invoke as ./os_release.awk OSRELEASE_VAR_KEY"
