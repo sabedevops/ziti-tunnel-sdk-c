@@ -4,22 +4,49 @@ if(NOT ZITI_SDK_C_BRANCH)
     set(ZITI_SDK_C_BRANCH "0.26.29")
 endif()
 
+# if TUNNEL_SDK_ONLY then don't descend into programs/ziti-edge-tunnel
 option(TUNNEL_SDK_ONLY "build only ziti-tunnel-sdk (without ziti)" OFF)
-
 message("tunnel only = ${TUNNEL_SDK_ONLY}")
 
-execute_process(
-        COMMAND git describe --tags --dirty=-local
-        OUTPUT_VARIABLE GIT_VERSION
+find_package(Git)
+if(GIT_FOUND)
+    message(INFO "Found Git executable \"${GIT_EXECUTABLE}\".")
+    # Generate a git-describe version string from Git repository tags
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} describe --tags --dirty=-local --match "v*"
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        OUTPUT_VARIABLE GIT_DESCRIBE_VERSION
+        RESULT_VARIABLE GIT_DESCRIBE_ERROR_CODE
         OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-string(REGEX MATCH "([0-9]+\\.[0-9]+\\.[0-9]+)" ver "${GIT_VERSION}")
+        )
+    if(NOT GIT_DESCRIBE_ERROR_CODE)
+        set(GIT_VERSION ${GIT_DESCRIBE_VERSION})
+        message(INFO "Found Git version \"${GIT_DESCRIBE_VERSION}\" without error code.")
+    else()
+        message(INFO "Found Git version \"${GIT_DESCRIBE_VERSION}\" with error code \"${GIT_DESCRIBE_ERROR_CODE}\".")
+    endif()
+endif()
+# Final fallback: Just use a bogus version string that is semantically older
+# than anything else and spit out a warning to the developer.
+if(DEFINED GIT_VERSION)
+    message(INFO "Using Git version \"${GIT_VERSION}\".")
+else()
+    set(GIT_VERSION v0.0.0-unknown)
+    message(WARNING "Failed to determine GIT_VERSION from Git tags. Using default version \"${GIT_VERSION}\".")
+endif()
+string(REGEX MATCH "([0-9]+\\.[0-9]+\\.[0-9]+)" PROJECT_SEMVER "${GIT_VERSION}")
+
+message(INFO "Parsed Git version \"${GIT_VERSION}\" as project semver \"${PROJECT_SEMVER}\".")
 
 project(ziti-tunnel-sdk-c
-        VERSION "${ver}"
+        VERSION "${PROJECT_SEMVER}"
         LANGUAGES C CXX)
-include(CPack)
-set(CPACK_PACKAGE_VENDOR "NetFoundry")
+
+if(NOT BUILD_DIST_PACKAGES)
+    include(CPack)
+    set(CPACK_PACKAGE_VENDOR "NetFoundry")
+endif()
+
 set(CMAKE_C_STANDARD 99)
 
 if (MSVC)
@@ -35,10 +62,9 @@ file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/bundle)
 
 macro(BUNDLE_COMP comp)
     add_custom_target(${comp}-bundle
-            BYPRODUCTS ${CMAKE_BINARY_DIR}/bundle/${comp}-${CPACK_SYSTEM_NAME}_${CMAKE_SYSTEM_PROCESSOR}.zip
-            DEPENDS ${comp}
-            COMMAND 7z a ${CMAKE_BINARY_DIR}/bundle/${comp}-${CPACK_SYSTEM_NAME}_${CMAKE_SYSTEM_PROCESSOR}.zip ${comp}${CMAKE_EXECUTABLE_SUFFIX} ${${comp}_BUNDLE_COMPS}
-            )
+        BYPRODUCTS ${CMAKE_BINARY_DIR}/bundle/${comp}-${CMAKE_SYSTEM_NAME}_${CMAKE_SYSTEM_PROCESSOR}.zip
+        DEPENDS ${comp}
+        COMMAND ${CMAKE_COMMAND} -E tar "cf" "${CMAKE_BINARY_DIR}/bundle/${comp}-${CMAKE_SYSTEM_NAME}_${CMAKE_SYSTEM_PROCESSOR}.zip" --format=7zip -- ${comp}${CMAKE_EXECUTABLE_SUFFIX} ${${comp}_BUNDLE_COMPS})
     add_dependencies(bundle ${comp}-bundle)
 endmacro()
 
@@ -75,8 +101,6 @@ target_compile_definitions(lwipcore
     PUBLIC MEMP_NUM_TCP_SEG=${TCP_MAX_QUEUED_SEGMENTS}
     PUBLIC MEMP_NUM_UDP_PCB=${UDP_MAX_CONNECTIONS}
 )
-
-
 
 if (WIN32)
 install(TARGETS lwipwin32arch
