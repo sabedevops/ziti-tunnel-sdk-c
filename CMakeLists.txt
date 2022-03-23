@@ -15,28 +15,37 @@ if(GIT_FOUND)
     execute_process(
         COMMAND ${GIT_EXECUTABLE} describe --tags --dirty=-local --match "v*"
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        OUTPUT_VARIABLE GIT_DESCRIBE_VERSION
-        RESULT_VARIABLE GIT_DESCRIBE_ERROR_CODE
+        OUTPUT_VARIABLE GIT_VERSION
+        RESULT_VARIABLE GIT_ERROR_CODE
         OUTPUT_STRIP_TRAILING_WHITESPACE
         )
-    if(NOT GIT_DESCRIBE_ERROR_CODE)
-        set(GIT_VERSION ${GIT_DESCRIBE_VERSION})
-        message(INFO "Found Git version \"${GIT_DESCRIBE_VERSION}\" without error code.")
+    if(GIT_ERROR_CODE)
+        message(ERROR "Error trying to get GIT_VERSION: \"${GIT_VERSION}\" and GIT_ERROR_CODE: \"${GIT_ERROR_CODE}\".")
     else()
-        message(INFO "Found Git version \"${GIT_DESCRIBE_VERSION}\" with error code \"${GIT_DESCRIBE_ERROR_CODE}\".")
+        message(DEBUG "Found Git version \"${GIT_VERSION}\" without error code.")
     endif()
 endif()
-# Final fallback: Just use a bogus version string that is semantically older
-# than anything else and spit out a warning to the developer.
-if(DEFINED GIT_VERSION)
-    message(INFO "Using Git version \"${GIT_VERSION}\".")
-else()
-    set(GIT_VERSION v0.0.0-unknown)
-    message(WARNING "Failed to determine GIT_VERSION from Git tags. Using default version \"${GIT_VERSION}\".")
-endif()
-string(REGEX MATCH "([0-9]+\\.[0-9]+\\.[0-9]+)" PROJECT_SEMVER "${GIT_VERSION}")
 
-message(INFO "Parsed Git version \"${GIT_VERSION}\" as project semver \"${PROJECT_SEMVER}\".")
+# Final fallback: Unless building packages, just use a bogus version string
+# that is semantically older than anything else and spit out a warning to the
+# developer.
+if(NOT GIT_VERSION)
+    set(GIT_VERSION v0.0.0-unknown)
+    set(PROJECT_SEMVER "0.0.0")
+    set(PROJECT_SEMVER_DEFAULT TRUE)
+    message(WARNING "Using default PROJECT_SEMVER: \"${PROJECT_SEMVER}\", GIT_VERSION: \"${GIT_VERSION}\".")
+else()
+    string(REGEX MATCH "([0-9]+\\.[0-9]+\\.[0-9]+)" PROJECT_SEMVER "${GIT_VERSION}")
+    if(NOT PROJECT_SEMVER)
+        message(FATAL_ERROR "Failed to parse PROJECT_SEMVER: \"${PROJECT_SEMVER}\" from GIT_VERSION: \"${GIT_VERSION}\".")
+    else()
+        message(INFO "Parsed GIT_VERSION: \"${GIT_VERSION}\", PROJECT_SEMVER: \"${PROJECT_SEMVER}\".")
+    endif()
+endif()
+
+if(BUILD_DIST_PACKAGES AND PROJECT_SEMVER_DEFAULT)
+    message(FATAL_ERROR "Need Git version to build packages for package manager compatibility.")
+endif()
 
 project(ziti-tunnel-sdk-c
         VERSION "${PROJECT_SEMVER}"

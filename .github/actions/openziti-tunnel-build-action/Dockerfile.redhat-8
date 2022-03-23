@@ -1,5 +1,7 @@
 FROM quay.io/rockylinux/rockylinux:8
 
+LABEL org.opencontainers.image.authors="steven.broderick@netfoundry.io,kenneth.bingham@netfoundry.io"
+
 USER root
 WORKDIR /root/
 

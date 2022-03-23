@@ -22,9 +22,11 @@ if(CPACK_GENERATOR MATCHES "RPM")
     set(CPACK_RPM_PACKAGE_REQUIRES_POST "systemd")
     set(CPACK_RPM_PACKAGE_REQUIRES_PREUN "systemd")
     set(CPACK_RPM_PACKAGE_REQUIRES_POSTUN "systemd")
-    #set(CPACK_RPM_ziti-edge-tunnel_PACKAGE_NAME "${CPACK_RPM_PACKAGE_NAME}")
-    #set(CPACK_RPM_ziti-edge-tunnel_FILE_NAME "RPM-DEFAULT")
-endif(CPACK_GENERATOR MATCHES "RPM")
+    #[[
+    set(CPACK_RPM_ziti-edge-tunnel_PACKAGE_NAME "${CPACK_RPM_PACKAGE_NAME}")
+    set(CPACK_RPM_ziti-edge-tunnel_FILE_NAME "RPM-DEFAULT")
+    ]]
+    endif(CPACK_GENERATOR MATCHES "RPM")
 
 if(CPACK_GENERATOR MATCHES "DEB")
     set(CPACK_DEBIAN_PACKAGE_DEPENDS "iproute2, sed, systemd")
