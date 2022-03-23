@@ -9,8 +9,8 @@ option(TUNNEL_SDK_ONLY "build only ziti-tunnel-sdk (without ziti)" OFF)
 message("tunnel only = ${TUNNEL_SDK_ONLY}")
 
 find_package(Git)
-if(GIT_FOUND)
-    message(INFO "Found Git executable \"${GIT_EXECUTABLE}\".")
+if(NOT GIT_VERSION AND GIT_FOUND)
+    message("Found Git executable \"${GIT_EXECUTABLE}\".")
     # Generate a git-describe version string from Git repository tags
     execute_process(
         COMMAND ${GIT_EXECUTABLE} describe --tags --dirty=-local --match "v*"
@@ -20,31 +20,42 @@ if(GIT_FOUND)
         OUTPUT_STRIP_TRAILING_WHITESPACE
         )
     if(GIT_ERROR_CODE)
-        message(ERROR "Error trying to get GIT_VERSION: \"${GIT_VERSION}\" and GIT_ERROR_CODE: \"${GIT_ERROR_CODE}\".")
+        message(SEND_ERROR "Error trying to get GIT_VERSION: \"${GIT_VERSION}\" and GIT_ERROR_CODE: \"${GIT_ERROR_CODE}\".")
     else()
         message(DEBUG "Found Git version \"${GIT_VERSION}\" without error code.")
     endif()
 endif()
+
+set(DUMMY_SEMVER "0.0.0")
 
 # Final fallback: Unless building packages, just use a bogus version string
 # that is semantically older than anything else and spit out a warning to the
 # developer.
 if(NOT GIT_VERSION)
     set(GIT_VERSION v0.0.0-unknown)
-    set(PROJECT_SEMVER "0.0.0")
-    set(PROJECT_SEMVER_DEFAULT TRUE)
-    message(WARNING "Using default PROJECT_SEMVER: \"${PROJECT_SEMVER}\", GIT_VERSION: \"${GIT_VERSION}\".")
+    set(PROJECT_SEMVER "${DUMMY_SEMVER}")
+    message(WARNING "GIT_VERSION not set. Using dummy PROJECT_SEMVER: \"${PROJECT_SEMVER}\", GIT_VERSION: \"${GIT_VERSION}\".")
 else()
     string(REGEX MATCH "([0-9]+\\.[0-9]+\\.[0-9]+)" PROJECT_SEMVER "${GIT_VERSION}")
     if(NOT PROJECT_SEMVER)
-        message(FATAL_ERROR "Failed to parse PROJECT_SEMVER: \"${PROJECT_SEMVER}\" from GIT_VERSION: \"${GIT_VERSION}\".")
+        set(PROJECT_SEMVER "${DUMMY_SEMVER}")
+        message(WARNING "SEMVER could not be parsed from GIT_VERSION: ${GIT_VERSION}. Setting to PROJECT_SEMVER: ${PROJECT_SEMVER}")
     else()
-        message(INFO "Parsed GIT_VERSION: \"${GIT_VERSION}\", PROJECT_SEMVER: \"${PROJECT_SEMVER}\".")
+        message("Parsed GIT_VERSION: \"${GIT_VERSION}\", PROJECT_SEMVER: \"${PROJECT_SEMVER}\".")
     endif()
 endif()
 
-if(BUILD_DIST_PACKAGES AND PROJECT_SEMVER_DEFAULT)
-    message(FATAL_ERROR "Need Git version to build packages for package manager compatibility.")
+option(DISABLE_SEMVER_VERIFICATION "Toggle SEMVER verification for BUILD_DIST_PACKAGES" OFF)
+option(BUILD_DIST_PACKAGES "Build packages for distribution package managers" OFF)
+
+# Require explicitely disabling SEMVER verification for bulding DIST packages.
+if(NOT DISABLE_SEMVER_VERIFICATION AND BUILD_DIST_PACKAGES AND PROJECT_SEMVER VERSION_EQUAL "${DUMMY_SEMVER}")
+    unset(GIT_VERSION CACHE)
+    unset(GIT_ERROR_CODE CACHE)
+    unset(PROJECT_SEMVER CACHE)
+    unset(BUILD_DIST_PACKAGES CACHE)
+    unset(DISABLE_SEMVER_VERIFICATION CACHE)
+    message(FATAL_ERROR "SEMVER Verification failed. A valid SEMVER is required for correct package version composition. To override, set DISABLE_SEMVER_VERIFICATION=ON.")
 endif()
 
 project(ziti-tunnel-sdk-c
